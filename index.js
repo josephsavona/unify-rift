@@ -8,6 +8,9 @@ var templates = {
 };
 
 var generate = function(template, apiDefinition, cb) {
+  if (typeof apiDefinition === 'string') {
+    apiDefinition = require(path.resolve(apiDefinition));
+  }
   process.nextTick(function() {
     var text;
     try {
