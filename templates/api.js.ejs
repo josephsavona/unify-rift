@@ -18,5 +18,5 @@ var api = module.exports = {
   }
 }
 <% for (var name in endpoints) { %><% var endpoint = endpoints[name] %>
-api.<%= name %>: function(params, cb) { _execute('<%= name %>', this.config.routes.<%= name %>, params, cb)}
+api.<%= name %> = function(params, cb) { _execute('<%= name %>', this.config.routes.<%= name %>, params, cb)}
 <% } %>
