@@ -14,9 +14,9 @@ var api = module.exports = {
     delegate: function(delegate) {
      _delegate = delegate;
     },
-    routes: <%= JSON.stringify(endpoints) %>
+    routes: <%- JSON.stringify(endpoints) %>
   }
 }
 <% for (var name in endpoints) { %><% var endpoint = endpoints[name] %>
-api.<%= name %>: function(params, cb) { _execute('<%= name %>', '<%= JSON.stringify(endpoint) %>', params, cb)}
+api.<%= name %>: function(params, cb) { _execute('<%= name %>', this.config.routes.<%= name %>, params, cb)}
 <% } %>
