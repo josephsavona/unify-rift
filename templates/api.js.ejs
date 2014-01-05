@@ -1,0 +1,22 @@
+// this code is automatically generated
+// modify the original api definition file
+
+var _delegate = {};
+var _execute = function(name, config, params, cb) {
+  if (!(name in _delegate)) {
+    throw new Error('API method "' + name + '" is undefined');
+  }
+  _delegate[name].apply(api, params, cb);
+}
+
+var api = module.exports = {
+  config: {
+    delegate: function(delegate) {
+     _delegate = delegate;
+    },
+    routes: <%= JSON.stringify(endpoints) %>
+  }
+}
+<% for (var name in endpoints) { %><% var endpoint = endpoints[name] %>
+api.<%= name %>: function(params, cb) { _execute('<%= name %>', '<%= JSON.stringify(endpoint) %>', params, cb)}
+<% } %>

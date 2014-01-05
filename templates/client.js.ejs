@@ -1,0 +1,13 @@
+// this code is automatically generated
+// modify the original api definition file
+
+// api dependencies
+var http = require('superagent');
+
+// api definition
+var api = module.exports = {};
+<% for (var name in endpoints) { %><% var endpoint = endpoints[name] %>
+// <%= endpoint.help || 'no help defined' %>
+api.<%= name %> = function(opts, cb) {
+  http.<%= endpoints[name].method.toLowerCase() %>('<%= endpoint.url %>', opts, cb);
+}<% } %>

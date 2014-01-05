@@ -18,5 +18,8 @@
     "generator"
   ],
   "author": "Joe Savona <joesavona@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "ejs": "~0.8.5"
+  }
 }
