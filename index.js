@@ -27,7 +27,7 @@ module.exports = {
     generate(templates.client, apiDefinition, cb);
   },
   generateApi: function(apiDefinition, cb) {
-    generate(templates.server, apiDefinition, cb);
+    generate(templates.api, apiDefinition, cb);
   }
 };
 
