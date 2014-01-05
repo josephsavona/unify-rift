@@ -6,7 +6,7 @@ var _execute = function(name, config, params, cb) {
   if (!(name in _delegate)) {
     throw new Error('API method "' + name + '" is undefined');
   }
-  _delegate[name].apply(api, params, cb);
+  _delegate[name].call(api, params, cb);
 }
 
 var api = module.exports = {
