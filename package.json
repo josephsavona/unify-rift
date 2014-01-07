@@ -1,6 +1,6 @@
 {
   "name": "unify-rift",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Thrift-like API generator for client and server.",
   "main": "index.js",
   "scripts": {
