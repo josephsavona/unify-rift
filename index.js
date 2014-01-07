@@ -24,12 +24,14 @@ var generate = function(template, apiDefinition, cb) {
 };
 
 var parseDefinition = function(apiDefinition) {
-  apiDefinition.forEach(function(route) {
+  var method, route;
+  for (method in apiDefinition) {
+    route = apiDefinition[method];
     if (!/^\//.test(route.url)) {
       route.url = '/' + route.url;
     }
-  })
-}
+  }
+};
 
 module.exports = {
   generateClient: function(apiDefinition, cb) {
