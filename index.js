@@ -11,6 +11,7 @@ var generate = function(template, apiDefinition, cb) {
   if (typeof apiDefinition === 'string') {
     apiDefinition = require(path.resolve(apiDefinition));
   }
+  parseDefinition(apiDefinition);
   process.nextTick(function() {
     var text;
     try {
@@ -22,12 +23,23 @@ var generate = function(template, apiDefinition, cb) {
   });
 };
 
+var parseDefinition = function(apiDefinition) {
+  apiDefinition.forEach(function(route) {
+    if (!/^\//.test(route.url)) {
+      route.url = '/' + route.url;
+    }
+  })
+}
+
 module.exports = {
   generateClient: function(apiDefinition, cb) {
     generate(templates.client, apiDefinition, cb);
   },
   generateApi: function(apiDefinition, cb) {
     generate(templates.api, apiDefinition, cb);
+  },
+  middleware: function(api) {
+    
   }
 };
 

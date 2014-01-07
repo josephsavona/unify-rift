@@ -1,7 +1,14 @@
 // this code is automatically generated
 // modify the original api definition file
 
+// object literal with apiMethodName -> apiMethod pairs
 var _delegate = {};
+
+// base URL at which API is hosted
+var _base = '';
+
+// method which wraps calls to API methods
+// with input/output formatting
 var _execute = function(name, config, params, cb) {
   if (!(name in _delegate)) {
     throw new Error('API method "' + name + '" is undefined');
@@ -9,14 +16,26 @@ var _execute = function(name, config, params, cb) {
   _delegate[name].call(api, params, cb);
 }
 
+// core API definition
 var api = module.exports = {
   config: {
     delegate: function(delegate) {
      _delegate = delegate;
     },
+    setBase: function(base) {
+      if (/\/$/.test(base)) {
+        base = base.slice(0, -1);
+      }
+      _base = base;
+    },
+    getBase: function() {
+      return _base;
+    },
     routes: <%- JSON.stringify(endpoints, null, 2) %>
   }
 }
-<% for (var name in endpoints) { %><% var endpoint = endpoints[name] %>
+<% for (var name in endpoints) { %>
+<% var endpoint = endpoints[name] %>
+// <%= endpoint.help || 'no help defined' %>
 api.<%= name %> = function(params, cb) { _execute('<%= name %>', this.config.routes.<%= name %>, params, cb)}
 <% } %>
