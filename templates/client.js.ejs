@@ -10,7 +10,7 @@ var api = module.exports = {};
 // <%= endpoint.help || 'no help defined' %>
 api.<%= name %> = function(opts, cb) {
   var url = this.config.getBase() + '<%= endpoint.url %>';
-  http.<%= endpoints[name].method.toLowerCase() %>(url, opts, fuction(err, response) {
+  http.<%= endpoints[name].method.toLowerCase() %>(url, opts, function(err, response) {
     if (err) {
       return cb(err);
     }
