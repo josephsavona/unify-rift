@@ -9,11 +9,11 @@ var _base = '';
 
 // method which wraps calls to API methods
 // with input/output formatting
-var _execute = function(name, config, params, cb) {
+var _execute = function(name, config, ctx, params, cb) {
   if (!(name in _delegate)) {
     throw new Error('API method "' + name + '" is undefined');
   }
-  _delegate[name].call(api, params, cb);
+  _delegate[name].call(api, ctx, params, cb);
 }
 
 // core API definition
@@ -37,5 +37,5 @@ var api = module.exports = {
 <% for (var name in endpoints) { %>
 <% var endpoint = endpoints[name] %>
 // <%= endpoint.help || 'no help defined' %>
-api.<%= name %> = function(params, cb) { _execute('<%= name %>', this.config.routes.<%= name %>, params, cb)}
+api.<%= name %> = function(ctx, params, cb) { _execute('<%= name %>', this.config.routes.<%= name %>, ctx, params, cb)}
 <% } %>

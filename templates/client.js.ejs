@@ -8,7 +8,7 @@ var api = module.exports = {};
 <% for (var name in endpoints) { %>
 <% var endpoint = endpoints[name] %>
 // <%= endpoint.help || 'no help defined' %>
-api.<%= name %> = function(opts, cb) {
+api.<%= name %> = function(ctx, opts, cb) {
   var url = this.config.getBase() + '<%= endpoint.url %>';
   http.<%= endpoints[name].method.toLowerCase() %>(url, opts, function(err, response) {
     if (err) {
