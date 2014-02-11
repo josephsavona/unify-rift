@@ -10,7 +10,18 @@ var api = module.exports = {};
 // <%= endpoint.help || 'no help defined' %>
 api.<%= name %> = function(ctx, opts, cb) {
   var url = this.config.getBase() + '<%= endpoint.url %>';
-  http.<%= endpoints[name].method.toLowerCase() %>(url, opts, function(err, response) {
+  var method = '<%= endpoints[name].method.toLowerCase() %>';
+  var xhr = http[method](url);
+  if (method === 'post' || method === 'put') {
+    xhr.send(opts);
+  } else {
+    xhr.query(opts);
+  }
+  xhr.set({
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest'
+  });
+  xhr.end(function(err, response) {
     if (err) {
       return cb(err);
     }
