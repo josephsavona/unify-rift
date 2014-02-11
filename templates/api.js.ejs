@@ -37,5 +37,12 @@ var api = module.exports = {
 <% for (var name in endpoints) { %>
 <% var endpoint = endpoints[name] %>
 // <%= endpoint.help || 'no help defined' %>
-api.<%= name %> = function(ctx, params, cb) { _execute('<%= name %>', this.config.routes.<%= name %>, ctx, params, cb)}
+api.<%= name %> = function(ctx, params, cb) {
+  if (arguments.length === 2) {
+    cb = params;
+    params = ctx;
+    ctx = {};
+  }
+  _execute('<%= name %>', this.config.routes.<%= name %>, ctx, params, cb);
+}
 <% } %>
