@@ -1,10 +1,10 @@
 {
   "name": "unify-rift",
-  "version": "0.0.13",
+  "version": "0.1.0",
   "description": "Thrift-like API generator for client and server.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tap ./test"
   },
   "repository": {
     "type": "git",
@@ -21,5 +21,12 @@
   "license": "MIT",
   "dependencies": {
     "ejs": "~0.8.5"
+  },
+  "devDependencies": {
+    "async": "~0.2.10",
+    "qs": "~0.6.6",
+    "superagent": "~0.16.0",
+    "tap": "~0.4.8",
+    "nock": "~0.27.2"
   }
 }

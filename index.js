@@ -16,10 +16,10 @@ var generate = function(template, apiDefinition, cb) {
     var text;
     try {
       text = ejs.render(template, {endpoints: apiDefinition});
-      cb(null, text);
     } catch (e) {
-      cb(e, null);
+      return cb(e, null);
     }
+    cb(null, text);
   });
 };
 

@@ -2,6 +2,7 @@
 
 // api dependencies
 var http = require('superagent');
+var qs = require('qs');
 
 var urlify = function(url, params) {
   var valid = true;
@@ -22,7 +23,8 @@ var urlify = function(url, params) {
 var api = module.exports = {};
 <% for (var name in endpoints) { %>
 <% var endpoint = endpoints[name] %>
-// <%= endpoint.help || 'no help defined' %>
+// <%= name %>()<% if (endpoint.help) { %>
+// <%= endpoint.help %><% } %>
 api.<%= name %> = function(ctx, opts, cb) {
   var url = urlify(this.config.getBase() + '<%= endpoint.url %>', opts);
   if (url === null) {
@@ -37,12 +39,32 @@ api.<%= name %> = function(ctx, opts, cb) {
   if (method === 'post' || method === 'put') {
     xhr.send(opts);
   } else {
-    xhr.query(opts);
+    xhr.query(qs.stringify(opts));
   }
   xhr.end(function(err, response) {
     if (err) {
       return cb(err);
     }
+    if (!response.ok || response.error) {
+      return cb({
+        error: response.error || {},
+        clientError: response.clientError,
+        serverError: response.serverError,
+        accepted: response.accepted,
+        noContent: response.noContent,
+        unauthorized: response.unauthorized,
+        notAcceptable: response.notAcceptable,
+        forbidden: response.forbidden,
+        notFound: response.notFound,
+        status: response.status,
+        statusCode: response.statusCode,
+        domain: response.req.domain,
+        method: response.req.method,
+        path: response.req.path,
+        text: response.text
+      });
+    }
     return cb(null, response.body);
   });
-}<% } %>
+}
+<% } %>
