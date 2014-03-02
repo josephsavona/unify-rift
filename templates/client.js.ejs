@@ -3,13 +3,31 @@
 // api dependencies
 var http = require('superagent');
 
+var urlify = function(url, params) {
+  var valid = true;
+  var urlified = url.replace(/:(\/?)(\w+)(\??)/g, function(_, slash, param, optional) {
+    if (!(param in params)) {
+      if (optional) {
+        return slash;
+      }
+      valid = false
+      return slash + param;
+    }
+    return slash + encodeURIComponent(params[param]);
+  });
+  return valid ? urlified : null;
+}
+
 // api definition
 var api = module.exports = {};
 <% for (var name in endpoints) { %>
 <% var endpoint = endpoints[name] %>
 // <%= endpoint.help || 'no help defined' %>
 api.<%= name %> = function(ctx, opts, cb) {
-  var url = this.config.getBase() + '<%= endpoint.url %>';
+  var url = urlify(this.config.getBase() + '<%= endpoint.url %>', opts);
+  if (url === null) {
+    return cb(new Error('Invalid url/parameters ' + url));
+  }
   var method = '<%= endpoints[name].method.toLowerCase() %>';
   var xhr = http[method](url);
   xhr.set({
