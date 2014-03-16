@@ -34,7 +34,8 @@ api.<%= name %> = function(ctx, opts, cb) {
   var xhr = http[method](url);
   xhr.set({
     'Content-Type': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest'
+    'X-Requested-With': 'XMLHttpRequest',
+    'X-CSRF-Token': ctx.csrf
   });
   if (method === 'post' || method === 'put') {
     xhr.send(opts);
