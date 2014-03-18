@@ -1,6 +1,6 @@
 {
   "name": "unify-rift",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Thrift-like API generator for client and server.",
   "main": "index.js",
   "scripts": {
@@ -20,12 +20,11 @@
   "author": "Joe Savona <joesavona@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "ejs": "~0.8.5"
+    "bluebird": "~1.1.0",
+    "superagent": "~0.16.0",
+    "qs": "~0.6.6"
   },
   "devDependencies": {
-    "async": "~0.2.10",
-    "qs": "~0.6.6",
-    "superagent": "~0.16.0",
     "tap": "~0.4.8",
     "nock": "~0.27.2"
   }

@@ -9,35 +9,29 @@ Thrift-like API generator for client and server
 
 Configure the client in your main application entry point:
 
-    // generated api wrapper
-    var api = require('./gen/api');
-    // generated api client
-    var client = require('./gen/api-client');
+    // core library
+    var api = require('unify-rift');
+    // your api definition
+    var apiDefinition = require('./api.json');
     // delegate calls to the server
     // via the generated client wrapper
-    api.delegate(client);
+    api.config.delegate(apiDefinition);
 
 ### Server Configuration
 
 Configure the server before loading the api consumer code:
 
-    // generated api wrapper
-    var api = require('./gen/api');
+    // core library
+    var api = require('unify-rift');
     // your implementation of the api method calls
-    var server = require('./lib/api');
+    var server = require('./api');
     // delegate calls to the implementation
-    api.delegate(server);
+    api.config.delegate(server);
 
     // for a connect-compatibile app,
     // serve the api for the client
     var rift = require('node-rift');
-    app.use(rift.middlware(api, {
-      baseUrl: '/api'
-    }));
-
-For non-connect servers, you can use api.config to retrieve
-the route information including url and method of each route,
-and manually configure your server to route them.
+    app.use(api.config.router(require('./api.json')));
 
 
 ### Defining & Implementing the API
@@ -56,13 +50,15 @@ API definition:
     }
 
 API implementation
+Note: to be compatible on both client & server, your methods must return a promise (eg `bluebird`).
 
     // sample.js
     module.exports = {
-      routeName: function(params, callback) {
-        doSomething(function(err, result) {
-          if (err) return callback(err);
-          callback(null, result);
+      routeName: function(params) {
+        return new Promise(function(resolve, reject) {
+          var value;
+          // ...async computation...
+          resolve(value)
         })
       }
     }
@@ -73,8 +69,11 @@ API implementation
 In your application code, retrive the configured instance:
 
     // retrieve the code configured earlier
-    var api = require('./gen/api');
+    var api = require('unify-rift');
     // call a method
-    api.someMethod('input', function(err, output) {
-      // ... do stuff
+    api.someMethod('input').then(function(results) {
+        console.log(results);
+    })
+    .catch(function(err) {
+        console.error(err);
     })

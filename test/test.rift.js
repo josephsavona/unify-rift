@@ -5,5 +5,12 @@ var search = module.exports = {
     url: '/rel/path',
     // the http method type: get, post, put, del
     method: 'get'
+  },
+  user: {
+    get: {
+      help: 'Get user by ID',
+      url: '/user/:id',
+      method: 'get'
+    }
   }
 };
