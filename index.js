@@ -47,7 +47,9 @@ var createRoutes = function(endpoints, app) {
     if (!endpoints.hasOwnProperty(key)) { continue; }
     endpoint = endpoints[key];
     if (endpoint.config && endpoint.config.url && endpoint.config.method) {
-      app[endpoint.config.method].call(app, (config['base'] || '') + endpoint.config.url, createRoute(endpoint));
+      app[endpoint.config.method].call(app, (config['base'] || '') + endpoint.config.url, (function(endpoint) {
+        return createRoute(endpoint);
+      })(endpoint);
     } else {
       createRoutes(endpoint, app);
     }
