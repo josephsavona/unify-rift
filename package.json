@@ -1,6 +1,6 @@
 {
   "name": "unify-rift",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Thrift-like API generator for client and server.",
   "main": "index.js",
   "scripts": {
@@ -22,10 +22,13 @@
   "dependencies": {
     "bluebird": "~1.1.0",
     "superagent": "~0.16.0",
-    "qs": "~0.6.6"
+    "qs": "~0.6.6",
+    "lodash": "~2.4.1"
   },
   "devDependencies": {
     "tap": "~0.4.8",
-    "nock": "~0.27.2"
+    "nock": "~0.27.2",
+    "supertest": "~0.10.0",
+    "express": "~3.5.0"
   }
 }

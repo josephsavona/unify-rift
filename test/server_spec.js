@@ -1,6 +1,7 @@
 var test = require('tap').test;
 var api = require('../index');
 var client = require('./test.rift');
+var server = require('./test');
 var nock = require('nock');
 var Promise = require('bluebird');
 
@@ -8,18 +9,8 @@ var Promise = require('bluebird');
 // nock.recorder.rec();
 
 api.config.set('base', '/api');
-api.config.delegate({
-  fail: function(params) {
-    return new Promise(function(resolve, reject) {
-      reject('error');
-    });
-  },
-  succeed: function(params) {
-    return new Promise(function(resolve, reject) {
-      resolve(params);
-    });
-  }
-});
+api.config.define(client);
+api.config.delegate(server);
 
 test('should return error if implementation reject()s', function(t) {
   t.plan(2);

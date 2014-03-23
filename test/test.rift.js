@@ -1,4 +1,4 @@
-var search = module.exports = {
+module.exports = {
   search: {
     help: 'HELP STRING',
     // path relative to API root
@@ -12,5 +12,13 @@ var search = module.exports = {
       url: '/user/:id',
       method: 'get'
     }
+  },
+  fail: {
+    url: '/fail',
+    method: 'get'
+  },
+  succeed: {
+    url: '/succeed',
+    method: 'get'
   }
 };

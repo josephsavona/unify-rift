@@ -7,7 +7,7 @@ var nock = require('nock');
 // nock.recorder.rec();
 
 api.config.set('base', '/api');
-api.config.delegate(client);
+api.config.define(client);
 
 test('should return error in callback for 403 response', function(t) {
   nock('http://localhost:80')
@@ -98,3 +98,24 @@ test('should send complex queries as json', function(t) {
     t.end();
   });
 });
+
+test('should call nested endpoints', function(t) {
+  nock('http://localhost:80')
+  .get('/api/user/1')
+  .reply(200, '{"id":1}',
+    { server: 'nginx/1.4.5',
+      date: 'Sun, 02 Mar 2014 20:03:06 GMT',
+      'content-type': 'application/json',
+      'content-length': '15',
+      connection: 'close' });
+
+  api.user.get({
+    id: 1
+  }).then(function(results) {
+    t.equal(results.id, 1, 'response id should match');
+  }).catch(function(err) {
+    t.notOk(err, 'should not have error');
+  }).finally(function() {
+    t.end();
+  });
+})

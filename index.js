@@ -1,6 +1,7 @@
 var Promise = require('bluebird');
 var http = require('superagent');
 var qs = require('qs');
+var _ = require('lodash');
 
 // core definition.
 // protect the 'config' property via a getter method
@@ -25,29 +26,80 @@ var setConfig = {
   get: function(key) {
     return config[key];
   },
-  delegate: function(definition) {
-    setDelegate(api, definition);
+  define: function(definition) {
+    setDefinition(api, definition);
+  },
+  delegate: function(delegate) {
+    setDelegate(api, delegate);
+  },
+  middleware: function(app) {
+    createRoutes(api, app);
   }
 };
 Object.freeze(setConfig);
 
 /*
- *  setDelegate(endpoints, definition)
+ *  createRoutes(endpoints, app)
  */
-var setDelegate = function(endpoints, definition) {
+var createRoutes = function(endpoints, app) {
+  var endpoint;
+  for (var key in endpoints) {
+    if (!endpoints.hasOwnProperty(key)) { continue; }
+    endpoint = endpoints[key];
+    if (endpoint.config && endpoint.config.url && endpoint.config.method) {
+      app[endpoint.config.method].call(app, (config['base'] || '') + endpoint.config.url, createRoute(endpoint));
+    } else {
+      createRoutes(endpoint, app);
+    }
+  }
+};
+
+var createRoute = function(endpoint) {
+  return function(req, res, next) {
+    var params = _.extend({}, req.query, req.body, req.params);
+    endpoint(params, req)
+    .then(function(response) {
+      if (!req.xhr) {
+        return res.redirect(endpoint.redirectUrl || '/');
+      }
+      return res.json(response);
+    }).catch(function(err) {
+      next(err);
+    });
+  };
+};
+
+var setDelegate = function(endpoints, delegate) {
+  var endpoint, config;
+  for (var key in delegate) {
+    if (!delegate.hasOwnProperty(key) || !endpoints.hasOwnProperty(key)) { continue; }
+    endpoint = delegate[key];
+    if (typeof endpoint === 'function') {
+      endpoint.config = endpoints[key] ? endpoints[key].config : {};
+      endpoints[key] = endpoint;
+    } else {
+      setDelegate(endpoints[key], endpoint);
+    }
+  }
+};
+
+/*
+ *  setDefinition(endpoints, definition)
+ */
+var setDefinition = function(endpoints, definition) {
   var endpoint;
   for (var key in definition) {
-    if (!definition.hasOwnProperty(key) || key === 'delegate' || key === 'config') { continue; }
+    if (!definition.hasOwnProperty(key) || key === 'config') { continue; }
     endpoint = definition[key];
-    if (typeof definition[key] === 'function') {
-      endpoints[key] = definition[key];
-    } else if (!definition[key].method) {
-      endpoints[key] = endpoints[key] || {};
-      setDelegate(endpoints[key], definition[key]);
+
+    if (!endpoint.url) {
+      endpoints[key] = {};
+      setDefinition(endpoints[key], endpoint);
     } else {
       endpoints[key] = (function(definition) {
-        definition.method = definition.method.toLowerCase();
-        return exec.bind(api, definition);
+        var delegate = exec.bind(api, definition);
+        delegate.config = definition;
+        return delegate;
       })(definition[key]);
     }
   }
@@ -66,6 +118,7 @@ var setDelegate = function(endpoints, definition) {
 var urlify = function(url, params) {
   var valid = true;
   var urlified = url.replace(/:(\/?)(\w+)(\??)/g, function(_, slash, param, optional) {
+    var value;
     if (!(param in params)) {
       if (optional) {
         return slash;
@@ -73,7 +126,9 @@ var urlify = function(url, params) {
       valid = false;
       return slash + param;
     }
-    return slash + encodeURIComponent(params[param]);
+    value = params[param];
+    delete params[param];
+    return slash + encodeURIComponent(value);
   });
   return valid ? urlified : null;
 };
@@ -94,9 +149,15 @@ var exec = function(endpoint, params, ctx) {
       'Content-Type': 'application/json',
       'X-Requested-With': 'XMLHttpRequest'
     });
-    if (ctx && ctx.csrf) {
-      xhr.set('X-CSRF-Token', ctx.csrf);
+    if (ctx && ctx['csrf']) {
+      xhr.set('X-CSRF-Token', ctx['csrf']);
+    } else if (config['csrf']) {
+      xhr.set('X-CSRF-Token', config['csrf']);
     }
+
+    // todo: 'before' interceptors
+    // todo: validation with unify-data
+
     if (method === 'post' || method === 'put') {
       xhr.send(params);
     } else {
@@ -125,6 +186,10 @@ var exec = function(endpoint, params, ctx) {
           text: response.text
         });
       }
+
+      // todo: parse response model with unify-data
+      // todo: 'after' interceptors
+
       return resolve(response.body);
     });
   });
