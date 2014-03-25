@@ -1,5 +1,5 @@
 var test = require('tap').test;
-var api = require('../index');
+var api = require('../index')();
 var client = require('./test.rift');
 var server = require('./test');
 var request = require('supertest');

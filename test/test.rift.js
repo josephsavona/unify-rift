@@ -20,5 +20,31 @@ module.exports = {
   succeed: {
     url: '/succeed',
     method: 'get'
+  },
+  testBefore: {
+    url: '/testBefore',
+    method: 'get',
+    before: function(xhr, params, ctx, endpoint) {
+      delete params.notAllowed;
+      params.options = params.options || {
+        perPage: 25
+      };
+    }
+  },
+  testAfter: {
+    url: '/testAfter',
+    method: 'get',
+    after: function(response, params, ctx, endpoint) {
+      if (!response.body || !response.body.length) {
+        response.body = [{ok:false}];
+      }
+    }
+  },
+  testCatch: {
+    url: '/testCatch',
+    method: 'get',
+    catch: function(error, params, ctx, endpoint) {
+      error.customProperty = 'customProperty';
+    }
   }
 };

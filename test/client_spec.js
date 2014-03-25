@@ -1,5 +1,7 @@
 var test = require('tap').test;
-var api = require('../index');
+var rift = require('../index');
+var RiftError = rift.RiftError;
+var api = rift();
 var client = require('./test.rift');
 var nock = require('nock');
 
@@ -19,14 +21,16 @@ test('should return error in callback for 403 response', function(t) {
       'content-length': '168',
       connection: 'close' });
 
+  t.plan(5);
   api.search({}).then(function(results) {
     t.notOk(results, 'should not have results');
-  }).catch(function(err) {
+  }).catch(RiftError, function(err) {
     t.ok(err, 'should have error');
-    t.equal(err.status, 403);
-    t.equal(err.path, '/api/rel/path');
+    t.ok(err instanceof RiftError, 'err should be RiftError');
+    t.equal(err.detail.status, 403);
+    t.equal(err.detail.path, '/api/rel/path');
     // t.equal(err.method, 'GET');
-    t.ok(/403/.test(err.text), 'text should contain "403"');
+    t.ok(/403/.test(err.detail.text), 'text should contain "403"');
   }).finally(function() {
     t.end();
   });
@@ -42,13 +46,15 @@ test('should return error in callback for 500 response', function(t) {
       'content-length': '168',
       connection: 'close' });
 
-   api.search({}).then(function(results) {
+  t.plan(5);
+  api.search({}).then(function(results) {
     t.notOk(results, 'should not have results');
-  }).catch(function(err) {
+  }).catch(RiftError, function(err) {
     t.ok(err, 'should have error');
-    t.equal(err.status, 500);
-    t.equal(err.path, '/api/rel/path');
-    t.ok(/500/.test(err.text), 'text should contain "500"');
+    t.ok(err instanceof RiftError, 'err should be RiftError');
+    t.equal(err.detail.status, 500);
+    t.equal(err.detail.path, '/api/rel/path');
+    t.ok(/500/.test(err.detail.text), 'text should contain "500"');
   }).finally(function() {
     t.end();
   });
@@ -64,6 +70,7 @@ test('should return value when 200 json response', function(t) {
       'content-length': '15',
       connection: 'close' });
 
+  t.plan(2);
   api.search({}).then(function(results) {
     t.ok(results.key, 'should have expected key');
     t.equal(results.key, 'value', 'value should match');
@@ -84,6 +91,7 @@ test('should send complex queries as json', function(t) {
       'content-length': '15',
       connection: 'close' });
 
+  t.plan(2);
   api.search({
     key: 'value',
     options: {
@@ -92,6 +100,7 @@ test('should send complex queries as json', function(t) {
     list: ['item1', 'item2']
   }).then(function(results) {
     t.ok(results, 'should have results');
+    t.equal(results.key, 'value', 'results should be expected');
   }).catch(function(err) {
     t.notOk(err, 'should not have error');
   }).finally(function() {
@@ -109,9 +118,11 @@ test('should call nested endpoints', function(t) {
       'content-length': '15',
       connection: 'close' });
 
+  t.plan(2);
   api.user.get({
     id: 1
   }).then(function(results) {
+    t.ok(results, 'should have results');
     t.equal(results.id, 1, 'response id should match');
   }).catch(function(err) {
     t.notOk(err, 'should not have error');
