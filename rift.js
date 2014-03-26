@@ -182,6 +182,7 @@ module.exports = function() {
         headers: config.defaults || {},
         ctx: ctx || {},
         params: params,
+        host: config.host || '',
         url: urlify((config['base'] || '') + endpoint.url, params),
         method: endpoint.method
       });
@@ -201,7 +202,7 @@ module.exports = function() {
         return reject(new RiftError('No url/method'));
       }
 
-      xhr = http[ctx.method](ctx.url);
+      xhr = http[ctx.method](ctx.host + ctx.url);
       xhr.set(ctx.headers);
       if (config['csrf']) {
         xhr.set('X-CSRF-Token', config['csrf']);
