@@ -25,10 +25,16 @@ module.exports = function() {
     'defaults': {
       'Content-Type': 'application/json',
       'X-Requested-With': 'XMLHttpRequest'
-    }
+    },
+    before: [],
+    after: []
   };
   var setConfig = {
     set: function(key, value) {
+      // ensure that 'before' and 'after' are arrays of functions
+      if (key === 'before' || key === 'after') {
+        value = _.chain([value]).flatten().filter(_.isFunction).value();
+      }
       config[key] = value;
     },
     get: function(key) {
@@ -165,55 +171,54 @@ module.exports = function() {
    */
   var exec = function(endpoint, params, ctx) {
     return new Promise(function(resolve, reject) {
-      var url, method, xhr, errors;
+      var rejectValue, resolveValue, ix;
+      ctx = _.extend(ctx || {}, {
+        reject: function(value) {
+          rejectValue = value;
+        },
+        resolve: function(value) {
+          resolveValue = value;
+        },
+        headers: config.defaults || {},
+        ctx: ctx || {},
+        params: params,
+        url: urlify((config['base'] || '') + endpoint.url, params),
+        method: endpoint.method
+      });
 
-      url = urlify((config['base'] || '') + endpoint.url, params);
-      if (url === null) {
-        return reject(new Error('Invalid url/parameters'));
+      // optional 'before' filters
+      for (ix = 0; ix < config.before.length; ix++) {
+        config.before[ix](ctx);
+        if (typeof rejectValue !== 'undefined') {
+          return reject(rejectValue);
+        }
+        if (typeof resolveValue !== 'undefined') {
+          return resolve(resolveValue);
+        }
       }
-      ctx = ctx || {};
-      method = endpoint.method;
 
-      xhr = http[method](url);
-      xhr.set(config.defaults || {});
-      if (ctx['csrf']) {
-        xhr.set('X-CSRF-Token', ctx['csrf']);
-      } else if (config['csrf']) {
+      if (!ctx.url || !ctx.method) {
+        return reject(new RiftError('No url/method'));
+      }
+
+      xhr = http[ctx.method](ctx.url);
+      xhr.set(ctx.headers);
+      if (config['csrf']) {
         xhr.set('X-CSRF-Token', config['csrf']);
       }
 
-      // 'before' interceptors
-      endpoint.before.forEach(function(interceptor) {
-        interceptor(xhr, params, ctx, endpoint);
-      });
-
-      // optionally parse and validate request params
-      if (typeof endpoint.request === 'function') {
-        params = endpoint.request(params);
-
-        if (typeof params.validate === 'function') {
-          errors = params.validate();
-          if (errors) {
-            return reject(new ValidationError('invalid', errors));
-          }
-        }
-
-        if (typeof params.toJSON === 'function') {
-          params = params.toJSON();
-        }
-      }
-
-      if (method === 'post' || method === 'put') {
-        xhr.send(params);
+      if (ctx.method === 'post' || ctx.method === 'put') {
+        xhr.send(ctx.params);
       } else {
-        xhr.query(qs.stringify(params));
+        xhr.query(qs.stringify(ctx.params));
       }
       xhr.end(function(err, response) {
-        var error = err || false;
+        var ix;
 
-        // alternate forms of response failure
-        if (!response.ok || response.error) {
-          error = new RiftError('not ok/has error', {
+        if (err) {
+          ctx.error = err;
+        } else if (!response.ok || response.error) {
+          ctx.error = new RiftError('not ok/has error', {
             error: response.error || {},
             clientError: response.clientError,
             serverError: response.serverError,
@@ -230,25 +235,24 @@ module.exports = function() {
             path: response.req.path,
             text: response.text
           });
-        }
-        if (error) {
-          endpoint.catch.forEach(function(interceptor) {
-            interceptor(error, params, ctx, endpoint);
-          });
-          return reject(error);
+        } else {
+          ctx.body = response.body;
         }
 
-        // 'after' interceptors
-        endpoint.after.forEach(function(interceptor) {
-          interceptor(response, params, ctx, endpoint);
-        });
-
-        // optionally parse response object (validation left to user)
-        if (typeof endpoint.response === 'function') {
-          response.body = endpoint.response(response.body);
+        // optional 'after' filters
+        for (ix = 0; ix < config.after.length; ix++) {
+          config.after[ix](ctx);
+          if (typeof rejectValue !== 'undefined') {
+            return reject(rejectValue);
+          }
+          if (typeof resolveValue !== 'undefined') {
+            return resolve(resolveValue);
+          }
         }
-
-        return resolve(response.body);
+        if (ctx.error) {
+          return reject(ctx.error);
+        }
+        resolve(ctx.body);
       });
     });
   };

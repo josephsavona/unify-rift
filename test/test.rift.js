@@ -23,28 +23,14 @@ module.exports = {
   },
   testBefore: {
     url: '/testBefore',
-    method: 'get',
-    before: function(xhr, params, ctx, endpoint) {
-      delete params.notAllowed;
-      params.options = params.options || {
-        perPage: 25
-      };
-    }
+    method: 'get'
   },
   testAfter: {
     url: '/testAfter',
-    method: 'get',
-    after: function(response, params, ctx, endpoint) {
-      if (!response.body || !response.body.length) {
-        response.body = [{ok:false}];
-      }
-    }
+    method: 'get'
   },
   testCatch: {
     url: '/testCatch',
-    method: 'get',
-    catch: function(error, params, ctx, endpoint) {
-      error.customProperty = 'customProperty';
-    }
+    method: 'get'
   }
 };
