@@ -4,6 +4,8 @@ var RiftError = rift.RiftError;
 var api = rift();
 var client = require('./test.rift');
 var nock = require('nock');
+var sinon = require('sinon');
+var Promise = require('bluebird');
 
 // record http traffic
 // nock.recorder.rec();
@@ -128,5 +130,26 @@ test('should call nested endpoints', function(t) {
     t.notOk(err, 'should not have error');
   }).finally(function() {
     t.end();
+  });
+})
+
+test('should call delegates if overridden', function(t) {
+  var id = 10;
+  var defer = Promise.defer();
+  var delegate = {
+    user: {
+      get: sinon.stub().returns(defer.promise)
+    }
+  };
+  api.config.delegate(delegate);
+  api.user.get({
+    id: 1
+  }).then(function(results) {
+    t.ok(results, 'should have results');
+    t.equal(results.id, id, 'response id should match');
+    t.end();
+  })
+  defer.resolve({
+    id: id
   });
 })
