@@ -5,75 +5,102 @@ Thrift-like API generator for client and server
 
 ## Usage
 
-### Client Configuration
+### Client/Browser Configuration
 
 Configure the client in your main application entry point:
 
-    // core library
-    var api = require('unify-rift');
-    // your api definition
-    var apiDefinition = require('./api.json');
-    // delegate calls to the server
-    // via the generated client wrapper
-    api.config.delegate(apiDefinition);
+    var rift = require('rift');
+    var api = rift('api');
+    api.config.define({
+        ping: {
+            url: '/ping',
+            method: 'get'
+        },
+        pong: {
+            url: '/pong/:name',
+            method: 'post'
+        }
+    });
 
-### Server Configuration
+And then use it in application code:
 
-Configure the server before loading the api consumer code:
+    // retrieve previously configured instance by name
+    var api = require('rift')('api'); 
+    api.ping()
+    .then(function(response) {
+        ...
+    })
+    api.pong({name: 'Tester'})
+    .then(function(response) {
+        ...
+    })
 
-    // core library
-    var api = require('unify-rift');
-    // your implementation of the api method calls
-    var server = require('./api');
-    // delegate calls to the implementation
-    api.config.delegate(server);
+## Middleware Configuration
 
-    // for a connect-compatibile app,
-    // serve the api for the client
-    var rift = require('node-rift');
-    app.use(api.config.router(require('./api.json')));
+You may want to provide additional processing beyond the built-in JSON parsing/stringifying.
+For example, to implement caching:
 
-
-### Defining & Implementing the API
-
-The API is only implemented on the server. It should be a plain object
-where keys match those specified in the api definition file:
-
-API definition:
-
-    // sample.rift.js
-    module.exports = {
-      routeName: {
-        method: 'get',
-        url: '/route/test'
-      }
-    }
-
-API implementation
-Note: to be compatible on both client & server, your methods must return a promise (eg `bluebird`).
-
-    // sample.js
-    module.exports = {
-      routeName: function(params) {
+    api.config.set('before', function(request, defer) {
         return new Promise(function(resolve, reject) {
-          var value;
-          // ...async computation...
-          resolve(value)
+            // try to find the URL in cache
+            asyncCache.get(request.url, function(err, response) {
+                if (response) {
+                    // found: bypass XHR and return immediately to caller
+                    defer.resolve(response);
+                }
+                // always resolve the promise you return
+                resolve();
+            })
         })
-      }
+    })
+
+Or add some extra params (eg if you're calling an API with header-based auth):
+
+    api.config.set('before', function(request, defer) {
+        request.params.myAuthToken = 'TOKEN_VALUE';
+    })
+
+The first `request` param to 'before' and 'after' is a lightweight request wrapper. 
+It can be modified at any time, though only 'before' middleware can have an effect
+on the XHR request itself.
+    
+    request = {
+        headers: {},            // object literal
+        options: {},            // object literal
+        params: {},             // object literal of params
+        host: '',               // string hostname
+        url: '/pong/Tester',    // the endpoint URL with tokens replaced from params
+        method: 'get'           // lowercase HTTP method (eg get, post, put, delete)
     }
 
+The `defer` param is a deferred Promise object created via `Promise.defer()`. You can
+call `defer.resolve(...)` to abort further processing and return a value immediately.
+Alternatively, call `defer.reject(new Error('...'))` to abort processing and return
+a rejected value immediately.
 
-### Using the API
 
-In your application code, retrive the configured instance:
+## Server Configuration (Optional)
 
-    // retrieve the code configured earlier
-    var api = require('unify-rift');
-    // call a method
-    api.someMethod('input').then(function(results) {
-        console.log(results);
+You may optionally host the implementations of your API endpoints on a node server.
+
+    var rift = require('rift');
+    var api = rift('api');
+    api.config.define({
+        // as above
+        ping: {},
+        pong: {}
+    });
+    // on server, delegate to real implementations:
+    api.config.delegate({
+        ping: function() {
+            return Promise.cast('hello');
+        },
+        pong: function(params) {
+            return Promise.cast('hello ' + params.name)
+        }
     })
-    .catch(function(err) {
-        console.error(err);
-    })
+    // and serve it via express:
+    var app = express();
+    app.use(app.router);
+    api.config.middleware(app);
+    app.listen();

@@ -4,6 +4,7 @@ var RiftError = rift.RiftError;
 var api = rift();
 var client = require('./test.rift');
 var nock = require('nock');
+var Promise = require('bluebird');
 
 // record http traffic
 // nock.recorder.rec();
@@ -21,9 +22,9 @@ test('before filter can alter query params', function(t) {
       'content-length': '15',
       connection: 'close' });
 
-  api.config.set('before', function(ctx) {
-    delete ctx.params.notAllowed;
-    ctx.params.options = ctx.params.options || {
+  api.config.set('before', function(request, defer) {
+    delete request.params.notAllowed;
+    request.params.options = request.params.options || {
       perPage: 25
     };
   });
@@ -46,8 +47,8 @@ test('before filter can alter query params', function(t) {
 });
 
 test('before filter can reject request before xhr', function(t) {
-  api.config.set('before', function(ctx) {
-    ctx.reject(new RiftError('rejected!'));
+  api.config.set('before', function(request, defer) {
+    defer.reject(new RiftError('rejected!'));
   });
   api.config.set('after', null);
 
@@ -64,8 +65,11 @@ test('before filter can reject request before xhr', function(t) {
 });
 
 test('before filter can resolve request before xhr', function(t) {
-  api.config.set('before', function(ctx) {
-    ctx.resolve('resolved!');
+  api.config.set('before', function(request, defer) {
+    return Promise.delay(10)
+    .then(function() {
+      defer.resolve('resolved!');
+    })
   });
   api.config.set('after', null);
 
@@ -92,9 +96,9 @@ test('after filter can modify response body', function(t) {
       connection: 'close' });
 
   api.config.set('before', null);
-  api.config.set('after', function(ctx) {
-    if (!ctx.body || !ctx.body.length) {
-      ctx.body = [{ok:false}];
+  api.config.set('after', function(request, defer) {
+    if (!request.body || !request.body.length) {
+      request.body = [{ok:false}];
     }
   });
 
@@ -123,10 +127,13 @@ test('after filter can modify response error', function(t) {
       connection: 'close' });
 
   api.config.set('before', null);
-  api.config.set('after', function(ctx) {
-    if (ctx.error) {
-      ctx.error.customProperty = 'customProperty';
-    }
+  api.config.set('after', function(request, defer) {
+    return Promise.delay(10)
+    .then(function() {
+      if (request.error) {
+        request.error.customProperty = 'customProperty';
+      }
+    })
   });
 
   t.plan(2);

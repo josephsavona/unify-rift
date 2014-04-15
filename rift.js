@@ -3,11 +3,15 @@ var http = require('superagent');
 var qs = require('qs');
 var _ = require('lodash');
 var RiftError = require('./rift_error');
-var ValidationError = require('./validation_error');
 
 module.exports = function() {
-  // core definition.
-  // protect the 'config' property via a getter method
+  /*
+   *  public API wrapper object, to which defined
+   *  api endpoints are added as functions.
+   *
+   *  the `config` property is a getter to setConfig(),
+   *  see below for available configuration methods
+   */
   var api = Object.create({}, {
     config: {
       get: function() {
@@ -19,7 +23,7 @@ module.exports = function() {
   });
 
   /*
-   *  accessor for config values
+   * private local config values
    */
   var config = {
     'defaults': {
@@ -29,23 +33,107 @@ module.exports = function() {
     before: [],
     after: []
   };
+  /*
+   *  private callbacks list
+   */
+  var callbacks = [];
+
+  /*
+   *  public API for modifying the private config,
+   *  available via `apiInstance.config.METHOD()`
+   */
   var setConfig = {
+
+    /*
+     *  set(key, value)
+     *  @param key: string key name
+     *  @param value: value of the key
+     *  
+     *  Sets the configuration value for `key` to `value`.
+     *  Special keys:
+     *    defaults: object literal of headers to send by default
+     *    before: an array of functions to run before the xhr request
+     *    after: an array of functions to run after the xhr request
+     *    
+     */
     set: function(key, value) {
       // ensure that 'before' and 'after' are arrays of functions
       if (key === 'before' || key === 'after') {
         value = _.chain([value]).flatten().filter(_.isFunction).value();
+        config[key] = value;
+        callbacks = _.flatten([config.before, startXhrMiddleware, config.after, finalizeXhrMiddlware]);
       }
       config[key] = value;
     },
+
+    /*
+     *  get(key)
+     *  @param key: String key name
+     *  @returns: the value of the config variable
+     */
     get: function(key) {
       return config[key];
     },
+
+    /*
+     *  define(definition)
+     *  @param definition: object literal of api descriptions
+     *  @returns undefined
+     *
+     *  The main rift method: tells rift about the urls/methods of each
+     *  of the API endpoints it will wrap.
+     *  Merges `definition` with any existing definitions on the instance.
+     *  
+     *  Usage:
+     *  ```
+     *  api = rift('api');
+     *  api.define({
+     *    ping: { url: '/ping', method: 'get' }
+     *  })
+     *  api.ping()
+     *  .then(function(response) {
+     *    // response is the JSON response from the server
+     *  })
+     *  .catch(function(err) {
+     *    // err is the server error or error from parsing response
+     *  })
+     *  ```
+     */
     define: function(definition) {
       setDefinition(api, definition);
     },
+
+    /*
+     *  delegate(delegate)
+     *  @param delegate: object literal of endpoint implementations
+     *
+     *  Only necessary if you are using the same API on client/server.
+     *  This method replaces any defined API XHR functions with
+     *  local implementations from `delegate`. See `middleware()` for
+     *  more information and `test/router_spec.js` and 
+     *  `test/server_spec.js` for example usage.
+     */
     delegate: function(delegate) {
       setDelegate(api, delegate);
     },
+
+    /*
+     *  middleware(app)
+     *  @param app: an express-compatible http application
+     *  @returns undefined
+     *  
+     *  Creates routes on `app` to serve the defined routes on this rift instance.
+     *  Usage:
+     *    ```
+     *    api = rift('api');
+     *    api.define({...api descriptions...});
+     *    api.delegate({...api implementation...})
+     *
+     *    var app = express();
+     *    app.use(app.router);
+     *    api.config.middleware(app);
+     *    ```
+     */
     middleware: function(app) {
       createRoutes(api, app);
     }
@@ -54,6 +142,10 @@ module.exports = function() {
 
   /*
    *  createRoutes(endpoints, app)
+   *  @private
+   *  @param endpoints: object literal of endpoints
+   *  @param app: express application on which to create endpoints
+   *  See `setConfig.middleware()`
    */
   var createRoutes = function(endpoints, app) {
     var endpoint;
@@ -70,6 +162,10 @@ module.exports = function() {
     }
   };
 
+  /*
+   *  createRoute(endpoint)
+   *  Creates a route for the given endpoint for serving it on teh server.
+   */
   var createRoute = function(endpoint) {
     return function(req, res, next) {
       var params = _.extend({}, req.query, req.body, req.params);
@@ -85,6 +181,11 @@ module.exports = function() {
     };
   };
 
+  /*
+   *  setDelegate()
+   *  Replaces defined endpoints on `endpoints` with matching
+   *  implementations in `delegate`
+   */
   var setDelegate = function(endpoints, delegate) {
     var endpoint, config;
     for (var key in delegate) {
@@ -101,6 +202,8 @@ module.exports = function() {
 
   /*
    *  setDefinition(endpoints, definition)
+   *  Create promisified-xhr functions for each endpoint
+   *  defined in `definition`.
    */
   var setDefinition = function(endpoints, definition) {
     var endpoint;
@@ -116,21 +219,6 @@ module.exports = function() {
           var delegate = exec.bind(api, definition);
           delegate.config = definition;
           delegate.config.method = (delegate.config.method || 'get').toLowerCase().trim();
-          if (delegate.config.before) {
-            delegate.config.before = _.isArray(delegate.config.before) ? delegate.config.before : [delegate.config.before];
-          } else {
-            delegate.config.before = [];
-          }
-          if (delegate.config.after) {
-            delegate.config.after = _.isArray(delegate.config.after) ? delegate.config.after : [delegate.config.after];
-          } else {
-            delegate.config.after = [];
-          }
-          if (delegate.config.catch) {
-            delegate.config.catch = _.isArray(delegate.config.catch) ? delegate.config.catch : [delegate.config.catch];
-          } else {
-            delegate.config.catch = [];
-          }
           return delegate;
         })(definition[key]);
       }
@@ -166,60 +254,99 @@ module.exports = function() {
   };
 
   /*
-   *  exec(endpoint, params, ctx)
-   *    @returns: Promise that will resolve/reject based on xhr status 
+   *  exec(endpoint, params, options)
+   *  Given and endpoint definition, params, and other options,
+   *  makes an XHR request to the `endpoint`, passing the request
+   *  through config before/after middleware. 
+   *
+   *  Returns a promise that resolves/rejects with the XHR.
    */
-  var exec = function(endpoint, params, ctx) {
-    return new Promise(function(resolve, reject) {
-      var rejectValue, resolveValue, ix;
-      ctx = _.extend(ctx || {}, {
-        reject: function(value) {
-          rejectValue = value;
-        },
-        resolve: function(value) {
-          resolveValue = value;
-        },
-        headers: config.defaults || {},
-        ctx: ctx || {},
-        params: params,
-        host: config.host || '',
-        url: urlify((config['base'] || '') + endpoint.url, params),
-        method: endpoint.method
+  var exec = function(endpoint, params, options) {
+    var defer, request;
+    // promise to return
+    defer = Promise.defer();
+    // request wrapper to pass to before/after middleware
+    request = {
+      headers: config.defaults || {},
+      options: options || {},
+      params: params,
+      host: config.host || '',
+      url: urlify((config['base'] || '') + endpoint.url, params),
+      method: endpoint.method
+    }
+    execChain(request, defer);
+    return defer.promise;
+  }
+
+
+  /*
+   *  execChain(request, defer)
+   *  internal implementation of `exec` that iterates
+   *  through the middleware chain asynchronously.
+   */
+  var execChain = function(request, defer) {
+    var ix, next;
+    ix = 0;
+    if (!callbacks.length) {
+      callbacks = [startXhrMiddleware, finalizeXhrMiddlware];
+    }
+    next = function() {
+      var fn, cast;
+      fn = callbacks[ix++];
+      if (!fn) {
+        return;
+      }
+      // call each middleware in turn, exiting
+      // out of loop if defer is resolved
+      new Promise(function(resolve) {
+        resolve(fn(request, defer));
+      })
+      .catch(function(err) {
+        defer.reject(err);
+      })
+      .finally(function() {
+        if (!defer.promise.inspect().isResolved()) {
+          next();
+        }
       });
+    }
+    next();
+  }
 
-      // optional 'before' filters
-      for (ix = 0; ix < config.before.length; ix++) {
-        config.before[ix](ctx);
-        if (typeof rejectValue !== 'undefined') {
-          return reject(rejectValue);
-        }
-        if (typeof resolveValue !== 'undefined') {
-          return resolve(resolveValue);
-        }
+  // makes the XHR request for the given `request` object
+  var startXhrMiddleware = function(request, defer) {
+    var xhr;
+    return new Promise(function(resolve) {
+      console.log('startXhrMiddleware');
+      request.method = (request.method || '').toLowerCase().trim();
+      if (typeof http[request.method] !== 'function') {
+        throw new RiftError('Invalid HTTP Method ' + request.method);
       }
-
-      if (!ctx.url || !ctx.method) {
-        return reject(new RiftError('No url/method'));
+      if (!request.url) {
+        throw new RiftError('No URL Provided');
       }
-
-      xhr = http[ctx.method](ctx.host + ctx.url);
-      xhr.set(ctx.headers);
+      xhr = http[request.method](request.host + request.url);
+      xhr.set(request.headers);
       if (config['csrf']) {
         xhr.set('X-CSRF-Token', config['csrf']);
       }
 
-      if (ctx.method === 'post' || ctx.method === 'put') {
-        xhr.send(ctx.params);
+      if (request.method === 'post' || request.method === 'put') {
+        xhr.send(request.params);
       } else {
-        xhr.query(qs.stringify(ctx.params));
+        xhr.query(qs.stringify(request.params));
       }
       xhr.end(function(err, response) {
-        var ix;
+        console.log('startXhrMiddleware: response');
+        request.response = response;
+        request.error = null;
+        request.body = null;
 
         if (err) {
-          ctx.error = err;
+          request.error = err;
         } else if (!response.ok || response.error) {
-          ctx.error = new RiftError('not ok/has error', {
+          // save some useful information directly on the RiftError
+          request.error = new RiftError('Not ok/error', {
             error: response.error || {},
             clientError: response.clientError,
             serverError: response.serverError,
@@ -237,26 +364,22 @@ module.exports = function() {
             text: response.text
           });
         } else {
-          ctx.body = response.body;
+          request.body = response.body;
         }
-
-        // optional 'after' filters
-        for (ix = 0; ix < config.after.length; ix++) {
-          config.after[ix](ctx);
-          if (typeof rejectValue !== 'undefined') {
-            return reject(rejectValue);
-          }
-          if (typeof resolveValue !== 'undefined') {
-            return resolve(resolveValue);
-          }
-        }
-        if (ctx.error) {
-          return reject(ctx.error);
-        }
-        resolve(ctx.body);
+        resolve();
       });
-    });
-  };
+    })
+  }
+
+  // resolves the `defer`-ed object with the request error/body
+  var finalizeXhrMiddlware = function(request, defer) {
+    console.log('finalizeXhrMiddlware');
+    if (request.error) {
+      defer.reject(request.error);
+    } else {
+      defer.resolve(request.body);
+    }
+  }
 
   return api;
 };
