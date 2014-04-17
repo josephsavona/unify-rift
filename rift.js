@@ -317,7 +317,6 @@ module.exports = function() {
   var startXhrMiddleware = function(request, defer) {
     var xhr;
     return new Promise(function(resolve) {
-      console.log('startXhrMiddleware');
       request.method = (request.method || '').toLowerCase().trim();
       if (typeof http[request.method] !== 'function') {
         throw new RiftError('Invalid HTTP Method ' + request.method);
@@ -337,7 +336,6 @@ module.exports = function() {
         xhr.query(qs.stringify(request.params));
       }
       xhr.end(function(err, response) {
-        console.log('startXhrMiddleware: response');
         request.response = response;
         request.error = null;
         request.body = null;
@@ -373,7 +371,6 @@ module.exports = function() {
 
   // resolves the `defer`-ed object with the request error/body
   var finalizeXhrMiddlware = function(request, defer) {
-    console.log('finalizeXhrMiddlware');
     if (request.error) {
       defer.reject(request.error);
     } else {
