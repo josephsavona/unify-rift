@@ -18,7 +18,7 @@ module.exports = function() {
         return Promise.reject(new RiftError('No resolver specified'));
       }
       return new Promise(function(resolve) {
-        var endpoint, client;
+        var endpoint, client, callbacks;
         endpoint = config.resolver(topic);
         if (!endpoint) {
           return reject();
@@ -27,7 +27,8 @@ module.exports = function() {
         if (!client) {
           return reject(new RiftError('factory not defined for: ' + topic));
         }
-        return resolve(exec(client, endpoint, data, options));
+        callbacks = _.chain([config.before, client.before || client, config.after, client.after]).flatten().filter(_.isFunction).value();
+        return resolve(exec(callbacks, endpoint, data, options));
       });
     }
   };
@@ -187,7 +188,7 @@ module.exports = function() {
      *    ```
      */
     middleware: function(app) {
-      createRoutes(api, app);
+      createRoutes(config.definitions, app);
     }
   };
   Object.freeze(configAccessor);
@@ -200,18 +201,11 @@ module.exports = function() {
    *  See `configAccessor.middleware()`
    */
   var createRoutes = function(endpoints, app) {
-    var endpoint;
-    for (var key in endpoints) {
-      if (!endpoints.hasOwnProperty(key)) { continue; }
-      endpoint = endpoints[key];
-      if (endpoint.config && endpoint.config.url && endpoint.config.method) {
-        app[endpoint.config.method].call(app, (config['base'] || '') + endpoint.config.url, (function(endpoint) {
-          return createRoute(endpoint);
-        })(endpoint));
-      } else {
-        createRoutes(endpoint, app);
-      }
-    }
+    _.forIn(endpoints, function(endpoint, topic) {
+      app[endpoint.method].call(app, (config['base'] || '') + endpoint.url, (function(endpoint) {
+        return createRoute(endpoint);
+      })(endpoint));
+    });
   };
 
   /*
@@ -221,13 +215,16 @@ module.exports = function() {
   var createRoute = function(endpoint) {
     return function(req, res, next) {
       var params = _.extend({}, req.query, req.body, req.params);
-      endpoint(params, req)
+      return new Promise(function(resolve) {
+        resolve(exec([endpoint.delegate], endpoint, params, req));
+      })
       .then(function(response) {
         if (!req.xhr) {
           return res.redirect(endpoint.redirectUrl || '/');
         }
         return res.json(response);
-      }).catch(function(err) {
+      })
+      .catch(function(err) {
         next(err);
       });
     };
@@ -286,14 +283,14 @@ module.exports = function() {
   };
 
   /*
-   *  exec(client, endpoint, params, options)
+   *  exec(callbacks, endpoint, params, options)
    *  Given and endpoint definition, params, and other options,
    *  makes an XHR request to the `endpoint`, passing the request
    *  through config before/after middleware. 
    *
    *  Returns a promise that resolves/rejects with the XHR.
    */
-  var exec = function(client, endpoint, params, options) {
+  var exec = function(callbacks, endpoint, params, options) {
     var defer, request;
     // promise to return
     defer = Promise.defer();
@@ -308,7 +305,7 @@ module.exports = function() {
       endpoint: endpoint,
       config: config
     }
-    execChain(client, request, defer);
+    execChain(callbacks, request, defer);
     return defer.promise;
   }
 
@@ -318,10 +315,9 @@ module.exports = function() {
    *  internal implementation of `exec` that iterates
    *  through the middleware chain asynchronously.
    */
-  var execChain = function(client, request, defer) {
-    var ix, next, callbacks;
+  var execChain = function(callbacks, request, defer) {
+    var ix, next;
     ix = 0;
-    callbacks = _.chain([config.before, client.before || client, config.after, client.after]).flatten().filter(_.isFunction).value();
     next = function() {
       var fn, cast;
       fn = callbacks[ix++];

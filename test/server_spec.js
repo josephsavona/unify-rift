@@ -14,7 +14,7 @@ api.config.delegate(server);
 
 test('should return error if implementation reject()s', function(t) {
   t.plan(2);
-  api.fail({})
+  api.request('fail', {})
   .then(function(results) {
     t.notOk(results);
   }).catch(function(err) {
@@ -28,7 +28,7 @@ test('should return error if implementation reject()s', function(t) {
 test('should return results if implementation resolve()s', function(t) {
   var params = {};
   t.plan(2);
-  api.succeed(params)
+  api.request('succeed', params)
   .then(function(results) {
     t.ok(results);
     t.equal(results, params);
