@@ -4,33 +4,38 @@ module.exports = {
     // path relative to API root
     url: '/rel/path',
     // the http method type: get, post, put, del
-    method: 'get'
+    method: 'get',
+    client: 'http'
   },
-  user: {
-    get: {
-      help: 'Get user by ID',
-      url: '/user/:id',
-      method: 'get'
-    }
+  userGet: {
+    help: 'Get user by ID',
+    url: '/user/:id',
+    method: 'get',
+    client: 'http'
   },
   fail: {
     url: '/fail',
-    method: 'get'
+    method: 'get',
+    client: 'http'
   },
   succeed: {
     url: '/succeed',
-    method: 'get'
+    method: 'get',
+    client: 'http'
   },
   testBefore: {
     url: '/testBefore',
-    method: 'get'
+    method: 'get',
+    client: 'http'
   },
   testAfter: {
     url: '/testAfter',
-    method: 'get'
+    method: 'get',
+    client: 'http'
   },
   testCatch: {
     url: '/testCatch',
-    method: 'get'
+    method: 'get',
+    client: 'http'
   }
 };

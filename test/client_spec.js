@@ -1,5 +1,6 @@
 var test = require('tap').test;
 var rift = require('../index');
+var riftXhr = require('../rift.xhr');
 var RiftError = rift.RiftError;
 var api = rift();
 var client = require('./test.rift');
@@ -12,6 +13,7 @@ var Promise = require('bluebird');
 
 api.config.set('base', '/api');
 api.config.define(client);
+api.config.registerClient('http', riftXhr);
 
 test('should return error in callback for 403 response', function(t) {
   nock('http://localhost:80')
@@ -24,7 +26,8 @@ test('should return error in callback for 403 response', function(t) {
       connection: 'close' });
 
   t.plan(5);
-  api.search({}).then(function(results) {
+  api.request('search', {})
+  .then(function(results) {
     t.notOk(results, 'should not have results');
   }).catch(RiftError, function(err) {
     t.ok(err, 'should have error');
@@ -32,7 +35,7 @@ test('should return error in callback for 403 response', function(t) {
     t.equal(err.detail.status, 403);
     t.equal(err.detail.path, '/api/rel/path');
     // t.equal(err.method, 'GET');
-    t.ok(/403/.test(err.detail.text), 'text should contain "403"');
+    t.ok(/403/.test(err.detail.text), 'text should contain "403"')
   }).finally(function() {
     t.end();
   });
@@ -49,7 +52,7 @@ test('should return error in callback for 500 response', function(t) {
       connection: 'close' });
 
   t.plan(5);
-  api.search({}).then(function(results) {
+  api.request('search', {}).then(function(results) {
     t.notOk(results, 'should not have results');
   }).catch(RiftError, function(err) {
     t.ok(err, 'should have error');
@@ -73,7 +76,7 @@ test('should return value when 200 json response', function(t) {
       connection: 'close' });
 
   t.plan(2);
-  api.search({}).then(function(results) {
+  api.request('search', {}).then(function(results) {
     t.ok(results.key, 'should have expected key');
     t.equal(results.key, 'value', 'value should match');
   }).catch(function(err) {
@@ -94,7 +97,7 @@ test('should send complex queries as json', function(t) {
       connection: 'close' });
 
   t.plan(2);
-  api.search({
+  api.request('search', {
     key: 'value',
     options: {
       param: 'paramValue'
@@ -121,7 +124,7 @@ test('should call nested endpoints', function(t) {
       connection: 'close' });
 
   t.plan(2);
-  api.user.get({
+  api.request('userGet', {
     id: 1
   }).then(function(results) {
     t.ok(results, 'should have results');
@@ -131,25 +134,25 @@ test('should call nested endpoints', function(t) {
   }).finally(function() {
     t.end();
   });
-})
+});
 
 test('should call delegates if overridden', function(t) {
   var id = 10;
-  var defer = Promise.defer();
   var delegate = {
-    user: {
-      get: sinon.stub().returns(defer.promise)
+    userGet: function(request, defer) {
+      defer.resolve({
+        id: id
+      })
     }
   };
   api.config.delegate(delegate);
-  api.user.get({
+  api.request('userGet', {
     id: 1
   }).then(function(results) {
     t.ok(results, 'should have results');
     t.equal(results.id, id, 'response id should match');
     t.end();
-  })
-  defer.resolve({
-    id: id
+  }).catch(function(err) {
+    t.notOk(err, 'should not have an error');
   });
-})
+});

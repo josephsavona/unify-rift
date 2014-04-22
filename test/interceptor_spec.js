@@ -1,5 +1,6 @@
 var test = require('tap').test;
 var rift = require('../index');
+var riftXhr = require('../rift.xhr');
 var RiftError = rift.RiftError;
 var api = rift();
 var client = require('./test.rift');
@@ -11,6 +12,7 @@ var Promise = require('bluebird');
 
 api.config.set('base', '/api');
 api.config.define(client);
+api.config.registerClient('http', riftXhr);
 
 test('before filter can alter query params', function(t) {
   nock('http://localhost:80')
@@ -31,7 +33,7 @@ test('before filter can alter query params', function(t) {
   api.config.set('after', null);
 
   t.plan(3);
-  api.testBefore({
+  api.request('testBefore', {
     allowed: 'allowedParam',
     notAllowed: 'notAllowedParam'
   })
@@ -41,6 +43,7 @@ test('before filter can alter query params', function(t) {
     t.equal(results[0], 1);
   })
   .catch(function(err) {
+    console.error(err);
     t.notOk(err, 'should not have error');
   })
   .finally(t.end.bind(t));
@@ -53,7 +56,7 @@ test('before filter can reject request before xhr', function(t) {
   api.config.set('after', null);
 
   t.plan(2);
-  api.testBefore({})
+  api.request('testBefore', {})
   .then(function(results) {
     t.notOk(results, 'should not have results');
   })
@@ -74,7 +77,7 @@ test('before filter can resolve request before xhr', function(t) {
   api.config.set('after', null);
 
   t.plan(2);
-  api.testBefore({})
+  api.request('testBefore', {})
   .then(function(results) {
     t.ok(results);
     t.equal(results, 'resolved!');
@@ -103,7 +106,7 @@ test('after filter can modify response body', function(t) {
   });
 
   t.plan(3);
-  api.testAfter({})
+  api.request('testAfter', {})
   .then(function(results) {
     t.ok(results);
     t.equal(results.length, 1);
@@ -137,7 +140,7 @@ test('after filter can modify response error', function(t) {
   });
 
   t.plan(2);
-  api.testCatch({})
+  api.request('testCatch', {})
   .then(function(results) {
     t.notOk(results);
   })
