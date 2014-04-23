@@ -21,11 +21,11 @@ module.exports = function() {
         var endpoint, client, callbacks;
         endpoint = config.resolver(topic);
         if (!endpoint) {
-          return reject();
+          return reject(new RiftError('topic undefined: ' + topic));
         }
         client = config.clientFactory(endpoint);
         if (!client) {
-          return reject(new RiftError('factory not defined for: ' + topic));
+          return reject(new RiftError('client undefined for topic: ' + topic));
         }
         callbacks = _.chain([config.before, client.before || client, config.after, client.after]).flatten().filter(_.isFunction).value();
         return resolve(exec(callbacks, endpoint, data, options));
@@ -143,7 +143,7 @@ module.exports = function() {
      *  api.define({
      *    ping: { url: '/ping', method: 'get' }
      *  })
-     *  api.ping()
+     *  api.request('ping')
      *  .then(function(response) {
      *    // response is the JSON response from the server
      *  })
@@ -296,14 +296,17 @@ module.exports = function() {
     defer = Promise.defer();
     // request wrapper to pass to before/after middleware
     request = {
-      headers: config.defaults || {},
+      headers: _.defaults({}, config.defaults),
       options: options || {},
       params: params,
       host: config.host || '',
-      url: urlify((config['base'] || '') + endpoint.url, params),
-      method: endpoint.method,
+      method: endpoint.method || '',
+      url: '', // set below
       endpoint: endpoint,
       config: config
+    }
+    if (endpoint.url) {
+      request.url = urlify((config['base'] || '') + endpoint.url, params);
     }
     execChain(callbacks, request, defer);
     return defer.promise;
