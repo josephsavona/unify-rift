@@ -259,7 +259,7 @@ module.exports = function() {
     // promise to return
     defer = Promise.defer();
     // request wrapper to pass to before/after middleware
-    riftRequest = new RiftRequest(_.cloneDeep(endpoint), params, _.merge({}, config.custom, options));
+    riftRequest = new RiftRequest(_.cloneDeep(endpoint), params, _.defaults(options, config.custom));
     if (endpoint.url) {
       riftRequest.endpoint.url = urlify((config.custom['base'] || '') + endpoint.url, params);
     }
