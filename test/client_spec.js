@@ -138,28 +138,3 @@ test('should call nested endpoints', function(t) {
     t.end();
   });
 });
-
-/*
-test('should call delegates if overridden', function(t) {
-  var id = 10;
-  var delegate = {
-    userGet: function(request, defer) {
-      defer.resolve({
-        id: id
-      })
-    }
-  };
-  api.delegate(delegate);
-  api.request('userGet', {
-    id: 1
-  }).then(function(results) {
-    t.ok(results, 'should have results');
-    t.equal(results.id, id, 'response id should match');
-  }).catch(function(err) {
-    console.error(err);
-    t.notOk(err, 'should not have an error');
-  }).finally(function() {
-    t.end();
-  });
-});
-*/

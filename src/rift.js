@@ -152,46 +152,6 @@ module.exports = function() {
     define: function(definition) {
       config.definitions = setDefinition(config.definitions, definition || {});
       return this;
-    },
-
-    /*
-     *  delegate(delegate)
-     *  @param delegate: object literal of endpoint implementations
-     *
-     *  Only necessary if you are using the same API on client/server.
-     *  This method replaces any defined API XHR functions with
-     *  local implementations from `delegate`. See `middleware()` for
-     *  more information and `test/router_spec.js` and 
-     *  `test/server_spec.js` for example usage.
-     */
-    delegate: function(delegate) {
-      config.definitions = setDelegate(config.callbacks, config.definitions, delegate || {});
-      return this;
-    },
-
-    /*
-     *  middleware(app)
-     *  @param app: an express-compatible http application
-     *  @returns undefined
-     *  
-     *  Creates routes on `app` to serve the defined routes on this rift instance.
-     *  Usage:
-     *    ```
-     *    api = rift('api');
-     *    api.define({...api descriptions...});
-     *    api.delegate({...api implementation...})
-     *
-     *    var app = express();
-     *    app.use(app.router);
-     *    api.middleware(app);
-     *    ```
-     */
-    middleware: function(app) {
-      if (!app) {
-        throw new RiftError('middleware: must specify an app');
-      }
-      createRoutes(config.definitions, app);
-      return this;
     }
   };
   Object.freeze(api);
