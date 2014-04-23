@@ -1,10 +1,27 @@
 var Promise = require('bluebird');
-var http = require('superagent');
-var qs = require('qs');
 var _ = require('lodash');
+var util = require('util');
 var RiftError = require('./rift_error');
+var RiftRequest = require('./rift_request');
+var RiftRequestError = require('./rift_request_error');
 
 module.exports = function() {
+
+  /*
+   * private config values
+   */
+  var config = {
+    custom: {
+      'httpHeaders': {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+    },
+    callbacks: [],
+    resolvers: [],
+    definitions: {}
+  };
+
   /*
    *  public API wrapper object, to which defined
    *  api endpoints are added as functions.
@@ -13,119 +30,99 @@ module.exports = function() {
    *  see below for available configuration methods
    */
   var api = {
+    /*
+     *  resolve(topic)
+     *  @param {String} topic: string name of a topic
+     *  @returns {Object} the endpoint metadata if defined
+     */
+    resolve: function(topic) {
+      var endpoint, ix;
+      for (ix = 0; ix < config.resolvers.length; ix++) {
+        endpoint = config.resolvers[ix](topic, config.definitions);
+        if (endpoint) {
+          return endpoint;
+        }
+      }
+      return endpoint;
+    },
+
+    /*
+     *  request(topic, data[, options])
+     *  @param {String} topic: string name of topic
+     *  @param {Object|Array} data: data to pass to the endpoint
+     *  @param {Object} options: options/configuration used in request handling but not sent to endpoint
+     *
+     *  Make a request and return a Promise (bluebird) that will resolve/reject when
+     *  a response is received. The request will be processed using all defined interceptors.
+     */
     request: function(topic, data, options) {
-      if (typeof config.resolver !== 'function') {
-        return Promise.reject(new RiftError('No resolver specified'));
+      if (!config.resolvers.length) {
+        return Promise.reject(new RiftError('no resolvers defined, cannot retrieve endpoint for topic'));
       }
       return new Promise(function(resolve) {
-        var endpoint, client, callbacks;
-        endpoint = config.resolver(topic);
+        var endpoint, callbacks;
+        endpoint = this.resolve(topic);
         if (!endpoint) {
-          return reject(new RiftError('topic undefined: ' + topic));
+          return reject(new RiftError(util.format('topic undefined: %s checking %d resolvers', topic, config.resolvers.length)));
         }
-        client = config.clientFactory(endpoint);
-        if (!client) {
-          return reject(new RiftError('client undefined for topic: ' + topic));
-        }
-        callbacks = _.chain([config.before, client.before || client, config.after, client.after]).flatten().filter(_.isFunction).value();
-        return resolve(exec(callbacks, endpoint, data, options));
-      });
-    }
-  };
-  Object.defineProperties(api, {
-    config: {
-      get: function() {
-        return configAccessor;
-      }
-    }
-  });
-
-  /*
-   * private config values
-   */
-  var config = {
-    'defaults': {
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest'
+        return resolve(exec(endpoint, data, options));
+      }.bind(this));
     },
-    before: [],
-    after: [],
-    definitions: {},
-    clients: {},
-
-    /*
-     *  resolver(topic)
-     *  @param {String} topic: a topic name
-     *  @returns {Object} an object describing an endpoints metadata
-     */
-    resolver: function(topic) {
-      if (topic in this.definitions && this.definitions[topic]) {
-        return this.definitions[topic];
-      }
-      throw new RiftError('topic not defined: ' + topic);
-    },
-
-    /*
-     *  clientFactory(endpoint)
-     *  @param {Object} endpoint: object describing an endpoint
-     *  @returns: a function that will call the endpoint
-     */
-    clientFactory: function(endpoint) {
-      if (endpoint && typeof endpoint.delegate === 'function') {
-        return endpoint.delegate;
-      }
-      if (endpoint && endpoint.client && endpoint.client in this.clients) {
-        return this.clients[endpoint.client];
-      }
-      throw new RiftError('client not defined: ' + endpoint.client + ' for topic: ' + endpoint.topic);
-    }
-  };
-
-  /*
-   *  public API for modifying the private config,
-   *  available via `apiInstance.config.METHOD()`
-   */
-  var configAccessor = {
 
     /*
      *  set(key, value)
      *  @param key: string key name
      *  @param value: value of the key
      *  
-     *  Sets the configuration value for `key` to `value`.
-     *  Special keys:
-     *    defaults: object literal of headers to send by default
-     *    before: an array of functions to run before the xhr request
-     *    after: an array of functions to run after the xhr request
-     *    
+     *  Sets an option that will be passed to all requests in the `options` parameter.
      */
     set: function(key, value) {
-      // ensure that 'before' and 'after' are arrays of functions
-      if (key === 'before' || key === 'after') {
-        value = _.chain([value]).flatten().filter(_.isFunction).value();
-        config[key] = value;
-      }
-      config[key] = value;
+      config.custom[key] = value;
+      return this;
     },
 
     /*
      *  get(key)
      *  @param key: String key name
      *  @returns: the value of the config variable
+     *
+     *  Gets the named option previously defined via `.set()`
      */
     get: function(key) {
-      return config[key];
+      return config.custom[key];
     },
 
     /*
-     *  registerClient(type, client)
-     *  @param {String}
+     *  use(interceptor)
+     *  @param {RiftInterceptor} interceptor: a function to intercept
+     *  
+     *  Adds the `interceptor` to the chain of middleware to be applied before/after a request.
+     *  Example:
+     *  ```
+     *  rift.use(function(request, defer) {});
+     *  ```
      */
-    registerClient: function(type, client) {
-      if (!type || !client) {
-        throw new RiftError('registerClient: must set type and client');
+    use: function(interceptor) {
+      if (typeof interceptor !== 'function') {
+        throw new RiftError('use: must provide a function');
       }
-      config.clients[type] = client;
+      config.callbacks.push(interceptor);
+      return this;
+    },
+
+    /*
+     *  registerResolver(resolver)
+     *  @param {Function} resolver: function(topic){} that converts topic to an endpoint
+     *
+     *  Allows the application to define arbitrarily simple/complex methods of resolving
+     *  topic names into endpoint definitions.
+     */
+    registerResolver: function(resolver) {
+      if (typeof resolver !== 'function') {
+        throw new RiftError('registerResolver: must specify a function');
+      }
+      config.resolvers.push(resolver);
+      return this;
     },
 
     /*
@@ -153,7 +150,8 @@ module.exports = function() {
      *  ```
      */
     define: function(definition) {
-      config.definitions = setDefinition(config.definitions, definition);
+      config.definitions = setDefinition(config.definitions, definition || {});
+      return this;
     },
 
     /*
@@ -167,7 +165,8 @@ module.exports = function() {
      *  `test/server_spec.js` for example usage.
      */
     delegate: function(delegate) {
-      config.definitions = setDelegate(config.definitions, delegate);
+      config.definitions = setDelegate(config.callbacks, config.definitions, delegate || {});
+      return this;
     },
 
     /*
@@ -184,14 +183,18 @@ module.exports = function() {
      *
      *    var app = express();
      *    app.use(app.router);
-     *    api.config.middleware(app);
+     *    api.middleware(app);
      *    ```
      */
     middleware: function(app) {
+      if (!app) {
+        throw new RiftError('middleware: must specify an app');
+      }
       createRoutes(config.definitions, app);
+      return this;
     }
   };
-  Object.freeze(configAccessor);
+  Object.freeze(api);
 
   /*
    *  createRoutes(endpoints, app)
@@ -202,9 +205,7 @@ module.exports = function() {
    */
   var createRoutes = function(endpoints, app) {
     _.forIn(endpoints, function(endpoint, topic) {
-      app[endpoint.method].call(app, (config['base'] || '') + endpoint.url, (function(endpoint) {
-        return createRoute(endpoint);
-      })(endpoint));
+      app[endpoint.method].call(app, (config['base'] || '') + endpoint.url, createRoute(endpoint));
     });
   };
 
@@ -232,6 +233,7 @@ module.exports = function() {
 
   /*
    *  setDefinition(target, definitions)
+   *  merges new definitions with existing ones in target
    */
   var setDefinition = function(target, definitions) {
     target = _.merge(target, definitions);
@@ -243,6 +245,8 @@ module.exports = function() {
 
   /*
    *  setDelegate(target, delagators)
+   *  merges new delegation methods with existing ones in target.
+   *  note: ignores topics for which no definition exists.
    */
   var setDelegate = function(target, delagators) {
     _.forIn(target, function(endpoint, topic) {
@@ -283,54 +287,53 @@ module.exports = function() {
   };
 
   /*
-   *  exec(callbacks, endpoint, params, options)
-   *  Given and endpoint definition, params, and other options,
+   *  exec(endpoint, params, options)
+   *  Given an endpoint definition, params, and other options,
    *  makes an XHR request to the `endpoint`, passing the request
    *  through config before/after middleware. 
    *
-   *  Returns a promise that resolves/rejects with the XHR.
+   *  Returns a promise that resolves/rejects as endpoints returns/errors.
    */
-  var exec = function(callbacks, endpoint, params, options) {
-    var defer, request;
+  var exec = function(endpoint, params, options) {
+    var defer, riftRequest;
     // promise to return
     defer = Promise.defer();
     // request wrapper to pass to before/after middleware
-    request = {
-      headers: _.defaults({}, config.defaults),
-      options: options || {},
-      params: params,
-      host: config.host || '',
-      method: endpoint.method || '',
-      url: '', // set below
-      endpoint: endpoint,
-      config: config
-    }
+    riftRequest = new RiftRequest(_.cloneDeep(endpoint), params, _.merge({}, config.custom, options));
     if (endpoint.url) {
-      request.url = urlify((config['base'] || '') + endpoint.url, params);
+      riftRequest.endpoint.url = urlify((config.custom['base'] || '') + endpoint.url, params);
     }
-    execChain(callbacks, request, defer);
+    execChain(riftRequest, defer);
     return defer.promise;
-  }
-
+  };
 
   /*
-   *  execChain(client, request, defer)
+   *  execChain(riftRequest, defer)
    *  internal implementation of `exec` that iterates
    *  through the middleware chain asynchronously.
    */
-  var execChain = function(callbacks, request, defer) {
+  var execChain = function(riftRequest, defer) {
     var ix, next;
     ix = 0;
     next = function() {
       var fn, cast;
-      fn = callbacks[ix++];
+      fn = config.callbacks[ix++];
       if (!fn) {
+        if (!defer.promise.inspect().isResolved()) {
+          if (riftRequest.error) {
+            defer.reject(riftRequest.error);
+          } else if (riftRequest.data) {
+            defer.resolve(riftRequest.data);
+          } else {
+            defer.reject(new RiftError('unresolved request: no interceptor provided a value.'));
+          }
+        }
         return;
       }
       // call each middleware in turn, exiting
       // out of loop if defer is resolved
       new Promise(function(resolve) {
-        resolve(fn(request, defer));
+        resolve(fn(riftRequest, defer));
       })
       .catch(function(err) {
         defer.reject(err);
@@ -340,9 +343,9 @@ module.exports = function() {
           next();
         }
       });
-    }
+    };
     next();
-  }
+  };
 
   return api;
 };

@@ -1,8 +1,9 @@
 var test = require('tap').test;
 var rift = require('../index');
-var riftXhr = require('../rift.xhr');
 var RiftError = rift.RiftError;
-var api = rift();
+var RiftRequestError = rift.RiftRequestError;
+var RiftXHR = rift.RiftXHR;
+var RiftResolver = rift.RiftResolver;
 var client = require('./test.rift');
 var nock = require('nock');
 var Promise = require('bluebird');
@@ -10,9 +11,11 @@ var Promise = require('bluebird');
 // record http traffic
 // nock.recorder.rec();
 
-api.config.set('base', '/api');
-api.config.define(client);
-api.config.registerClient('http', riftXhr);
+var api = rift();
+api.set('base', '/api');
+api.define(client);
+api.use(RiftXHR);
+api.registerResolver(RiftResolver);
 
 test('before filter can alter query params', function(t) {
   nock('http://localhost:80')
@@ -24,13 +27,13 @@ test('before filter can alter query params', function(t) {
       'content-length': '15',
       connection: 'close' });
 
-  api.config.set('before', function(request, defer) {
+  api.use('before', function(request, defer) {
     delete request.params.notAllowed;
     request.params.options = request.params.options || {
       perPage: 25
     };
   });
-  api.config.set('after', null);
+  api.set('after', null);
 
   t.plan(3);
   api.request('testBefore', {
@@ -50,10 +53,10 @@ test('before filter can alter query params', function(t) {
 });
 
 test('before filter can reject request before xhr', function(t) {
-  api.config.set('before', function(request, defer) {
+  api.set('before', function(request, defer) {
     defer.reject(new RiftError('rejected!'));
   });
-  api.config.set('after', null);
+  api.set('after', null);
 
   t.plan(2);
   api.request('testBefore', {})
@@ -68,13 +71,13 @@ test('before filter can reject request before xhr', function(t) {
 });
 
 test('before filter can resolve request before xhr', function(t) {
-  api.config.set('before', function(request, defer) {
+  api.set('before', function(request, defer) {
     return Promise.delay(10)
     .then(function() {
       defer.resolve('resolved!');
     })
   });
-  api.config.set('after', null);
+  api.set('after', null);
 
   t.plan(2);
   api.request('testBefore', {})
@@ -98,8 +101,8 @@ test('after filter can modify response body', function(t) {
       'content-length': '15',
       connection: 'close' });
 
-  api.config.set('before', null);
-  api.config.set('after', function(request, defer) {
+  api.set('before', null);
+  api.set('after', function(request, defer) {
     if (!request.body || !request.body.length) {
       request.body = [{ok:false}];
     }
@@ -129,8 +132,8 @@ test('after filter can modify response error', function(t) {
       'content-length': '168',
       connection: 'close' });
 
-  api.config.set('before', null);
-  api.config.set('after', function(request, defer) {
+  api.set('before', null);
+  api.set('after', function(request, defer) {
     return Promise.delay(10)
     .then(function() {
       if (request.error) {

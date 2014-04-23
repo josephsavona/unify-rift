@@ -1,11 +1,15 @@
-var rift = require('./rift');
-var RiftError = require('./rift_error');
+var rift = require('./src/rift');
+var RiftError = require('./src/rift_error');
+var RiftRequestError = require('./src/rift_request_error');
+var RiftXHR = require('./src/rift_xhr');
+var RiftResolver = require('./src/resolver');
+
 var defaultApi = rift();
 var apis = {};
 
 var api = function(apiName) {
   if (!apiName) {
-    return defaultApi;
+    return rift();
   }
   if (!(apiName in apis)) {
     apis[apiName] = rift();
@@ -13,5 +17,8 @@ var api = function(apiName) {
   return apis[apiName];
 };
 api.RiftError = RiftError;
+api.RiftRequestError = RiftRequestError;
+api.RiftXHR = RiftXHR;
+api.RiftResolver = RiftResolver;
 
 module.exports = api;

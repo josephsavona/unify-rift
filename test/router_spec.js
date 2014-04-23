@@ -5,13 +5,13 @@ var server = require('./test');
 var request = require('supertest');
 var express = require('express');
 
-api.config.set('base', '/api');
-api.config.define(client);
-api.config.delegate(server);
+api.set('base', '/api');
+api.define(client);
+api.delegate(server);
 
 var app = express();
 app.use(app.router);
-api.config.middleware(app);
+api.middleware(app);
 
 test('router should return valid response', function(t) {
   t.plan(2);

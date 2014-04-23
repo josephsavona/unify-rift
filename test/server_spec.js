@@ -8,9 +8,9 @@ var Promise = require('bluebird');
 // record http traffic
 // nock.recorder.rec();
 
-api.config.set('base', '/api');
-api.config.define(client);
-api.config.delegate(server);
+api.set('base', '/api');
+api.define(client);
+api.delegate(server);
 
 test('should return error if implementation reject()s', function(t) {
   t.plan(2);
