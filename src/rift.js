@@ -296,14 +296,10 @@ module.exports = function() {
       // out of loop if defer is resolved
       new Promise(function(resolve) {
         resolve(fn(riftRequest));
-      })
-      .catch(function(err) {
-        defer.reject(err);
-      })
-      .finally(function() {
-        if (!defer.promise.inspect().isResolved()) {
-          next();
-        }
+      }).catch(function(err) {
+        riftRequest.reject(err);
+      }).finally(function() {
+        next();
       });
     };
     next();

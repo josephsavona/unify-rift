@@ -1,3 +1,7 @@
+// immediately load and configure the promise library for better debugging
+var Promise = require('bluebird');
+Promise.longStackTraces();
+
 var rift = require('./src/rift');
 var RiftError = require('./src/rift_error');
 var RiftRequestError = require('./src/rift_request_error');
