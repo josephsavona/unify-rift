@@ -75,10 +75,10 @@ test('before filter can reject request before xhr', function(t) {
 
 test('before filter can resolve request before xhr', function(t) {
   var api = beforeEach();
-  api.use(function(request, defer) {
+  api.use(function(request) {
     return Promise.delay(10)
     .then(function() {
-      defer.resolve('resolved!');
+      request.resolve('resolved!');
     })
   });
 
@@ -89,6 +89,7 @@ test('before filter can resolve request before xhr', function(t) {
     t.equal(results, 'resolved!');
   })
   .catch(function(err) {
+    console.error(err);
     t.notOk(err, 'should not have error');
   })
   .finally(t.end.bind(t));
@@ -106,9 +107,9 @@ test('after filter can modify response body', function(t) {
 
   var api = beforeEach();
   api.use(RiftXHR);
-  api.use(function(request, defer) {
+  api.use(function(request) {
     if (!request.data || !request.data.length) {
-      request.data = [{ok:false}];
+      request.resolve([{ok:false}]);
     }
   });
 

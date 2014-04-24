@@ -47,15 +47,15 @@ module.exports = function() {
     },
 
     /*
-     *  request(topic, data[, options])
+     *  request(topic, params[, options])
      *  @param {String} topic: string name of topic
-     *  @param {Object|Array} data: data to pass to the endpoint
+     *  @param {Object|Array} params: params to pass to the endpoint
      *  @param {Object} options: options/configuration used in request handling but not sent to endpoint
      *
      *  Make a request and return a Promise (bluebird) that will resolve/reject when
      *  a response is received. The request will be processed using all defined interceptors.
      */
-    request: function(topic, data, options) {
+    request: function(topic, params, options) {
       if (!config.resolvers.length) {
         return Promise.reject(new RiftError('no resolvers defined, cannot retrieve endpoint for topic'));
       }
@@ -65,7 +65,7 @@ module.exports = function() {
         if (!endpoint) {
           return reject(new RiftError(util.format('topic undefined: %s checking %d resolvers', topic, config.resolvers.length)));
         }
-        return resolve(exec(endpoint, data, options));
+        return resolve(exec(endpoint, params, options || {}));
       }.bind(this));
     },
 
@@ -280,9 +280,11 @@ module.exports = function() {
       fn = config.callbacks[ix++];
       if (!fn) {
         if (!defer.promise.inspect().isResolved()) {
-          if (riftRequest.error) {
+          if (riftRequest.isRejected()) {
+            // annotate the error with the rift request object
+            riftRequest.error.riftRequest = riftRequest;
             defer.reject(riftRequest.error);
-          } else if (riftRequest.data) {
+          } else if (riftRequest.isResolved()) {
             defer.resolve(riftRequest.data);
           } else {
             defer.reject(new RiftError('unresolved request: no interceptor provided a value.'));
@@ -293,7 +295,7 @@ module.exports = function() {
       // call each middleware in turn, exiting
       // out of loop if defer is resolved
       new Promise(function(resolve) {
-        resolve(fn(riftRequest, defer));
+        resolve(fn(riftRequest));
       })
       .catch(function(err) {
         defer.reject(err);
