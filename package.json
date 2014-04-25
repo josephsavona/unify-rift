@@ -23,7 +23,8 @@
     "superagent": "~0.16.0",
     "qs": "~0.6.6",
     "lodash": "~2.4.1",
-    "bluebird": "^1.2.2"
+    "bluebird": "^1.2.2",
+    "socket.io-client": "1.0"
   },
   "devDependencies": {
     "tap": "~0.4.8",

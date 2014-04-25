@@ -37,5 +37,10 @@ module.exports = {
     url: '/testCatch',
     method: 'get',
     client: 'http'
+  },
+
+  socketTest: {
+    client: 'socket'
   }
+
 };
