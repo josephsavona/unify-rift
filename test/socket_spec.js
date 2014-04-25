@@ -26,5 +26,8 @@ test('should make a request using socket', function (t) {
     t.equals(response.data.message, 'socketTest has been received.');
     t.end();
     server.stop();
+  }).catch(function () {
+    t.end();
+    server.stop();
   });
 });
