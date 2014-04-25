@@ -5,7 +5,7 @@ var Promise       = require('bluebird'),
       RiftError      = require('./rift_error'),
       client           = require('socket.io-client'),
       HOSTNAME = 'http://localhost:8100',
-      TIMEOUT     = '';
+      TIMEOUT     = 15000;
 
 module.exports = function use(request, defer) {
   if (!request || !request.endpoint || request.endpoint.client !== 'socket') {
@@ -21,6 +21,9 @@ module.exports = function use(request, defer) {
 
     return new Promise(function (resolve){
       socket.emit(topic);
+
+      setTimeout(function () {})
+
       socket.on('on' + topic.charAt(0).toUpperCase() + topic.slice(1), function (data) {
           request.data = data;
           resolve();

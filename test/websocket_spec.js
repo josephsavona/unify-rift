@@ -2,12 +2,12 @@ var test                         = require('tap').test;
        rift                         = require('../index'),
        RiftError               = rift.RiftError,
        RiftRequestError = rift.RiftRequestError,
-       RiftSocket            = require('../src/rift_socket'),
+       RiftSocket            = require('../src/rift_websocket'),
        RiftResolver         = rift.RiftResolver,
        client                    = require('./test.rift'),
        nock                     = require('nock'),
        sinon                    = require('sinon'),
-       server                   = require('./test_socket_server');
+       server                   = require('./test_websocket_server');
 
 var api = rift();
 api.set('base', '/api');
