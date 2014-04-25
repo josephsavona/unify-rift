@@ -22,10 +22,14 @@ module.exports = function use(request, defer) {
     return new Promise(function (resolve){
       socket.emit(topic);
 
-      setTimeout(function () {})
+      var timeout = setTimeout(function () {
+          //do some stuff and then resolve or error
+          resolve();
+      }, TIMEOUT);
 
       socket.on('on' + topic.charAt(0).toUpperCase() + topic.slice(1), function (data) {
           request.data = data;
+          clearTimeout(timeout);
           resolve();
       });
     });
