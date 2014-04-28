@@ -6,7 +6,7 @@ var rift = require('./src/rift');
 var RiftError = require('./src/rift_error');
 var RiftRequestError = require('./src/rift_request_error');
 var RiftXHR = require('./src/rift_xhr');
-var RiftWebSocket = require('./src/rift_socket');
+var RiftWebSocket = require('./src/rift_websocket');
 var RiftResolver = require('./src/resolver');
 
 var defaultApi = rift();
