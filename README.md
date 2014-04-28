@@ -1,7 +1,8 @@
 unify-rift
 ==========
 
-Thrift-like API generator for client and server
+Thrift-like API generator for client/server communication, with a standardized 
+API for HTTP and WebSocket.
 
 ## Usage
 
@@ -11,14 +12,18 @@ Configure the client in your main application entry point:
 
     var rift = require('rift');
     var api = rift('api');
-    api.config.define({
+    api.use(rift.RiftXHR());
+    api.registerResolver(rift.RiftResolver);
+    api.define({
         ping: {
             url: '/ping',
-            method: 'get'
+            method: 'get',
+            client: 'http'
         },
         pong: {
             url: '/pong/:name',
             method: 'post'
+            client: 'http'
         }
     });
 
@@ -26,11 +31,11 @@ And then use it in application code:
 
     // retrieve previously configured instance by name
     var api = require('rift')('api'); 
-    api.ping()
+    api.request('ping')
     .then(function(response) {
         ...
     })
-    api.pong({name: 'Tester'})
+    api.request('pong', {name: 'Tester'})
     .then(function(response) {
         ...
     })
@@ -40,13 +45,13 @@ And then use it in application code:
 You may want to provide additional processing beyond the built-in JSON parsing/stringifying.
 For example, to implement caching:
 
-    api.config.set('before', function(request, defer) {
+    api.use(function(request) {
         return new Promise(function(resolve, reject) {
             // try to find the URL in cache
-            asyncCache.get(request.url, function(err, response) {
+            asyncCache.get(request.endpoint.url, function(err, response) {
                 if (response) {
                     // found: bypass XHR and return immediately to caller
-                    defer.resolve(response);
+                    response.resolve(response);
                 }
                 // always resolve the promise you return
                 resolve();
@@ -56,51 +61,23 @@ For example, to implement caching:
 
 Or add some extra params (eg if you're calling an API with header-based auth):
 
-    api.config.set('before', function(request, defer) {
+    api.use(function(request) {
         request.params.myAuthToken = 'TOKEN_VALUE';
     })
 
-The first `request` param to 'before' and 'after' is a lightweight request wrapper. 
-It can be modified at any time, though only 'before' middleware can have an effect
-on the XHR request itself.
+The `request` param to 'use' is a lightweight request wrapper with the following structure:
     
     request = {
-        headers: {},            // object literal
-        options: {},            // object literal
-        params: {},             // object literal of params
-        host: '',               // string hostname
-        url: '/pong/Tester',    // the endpoint URL with tokens replaced from params
-        method: 'get'           // lowercase HTTP method (eg get, post, put, delete)
+        endpoint: {},           // object with the api definition passed in `define()`
+        options: {},            // object with `request()` options merged w/ defaults
+        params: {},             // object of params passed to `request()`
+        error: null,            // Error object or null
+        data: null,             // object of response data or null
+        meta: {}                // object of metadata
     }
+    // reject the request with the given `err` Error instance.
+    request.reject(err);        
 
-The `defer` param is a deferred Promise object created via `Promise.defer()`. You can
-call `defer.resolve(...)` to abort further processing and return a value immediately.
-Alternatively, call `defer.reject(new Error('...'))` to abort processing and return
-a rejected value immediately.
+    // resolve the request with the given reponse data
+    request.resolve(response);
 
-
-## Server Configuration (Optional)
-
-You may optionally host the implementations of your API endpoints on a node server.
-
-    var rift = require('rift');
-    var api = rift('api');
-    api.config.define({
-        // as above
-        ping: {},
-        pong: {}
-    });
-    // on server, delegate to real implementations:
-    api.config.delegate({
-        ping: function() {
-            return Promise.cast('hello');
-        },
-        pong: function(params) {
-            return Promise.cast('hello ' + params.name)
-        }
-    })
-    // and serve it via express:
-    var app = express();
-    app.use(app.router);
-    api.config.middleware(app);
-    app.listen();
