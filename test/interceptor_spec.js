@@ -1,7 +1,9 @@
 var test = require('tap').test;
 var rift = require('../index');
 var RiftError = rift.RiftError;
-var api = rift();
+var RiftRequestError = rift.RiftRequestError;
+var RiftXHR = rift.RiftXHR;
+var RiftResolver = rift.RiftResolver;
 var client = require('./test.rift');
 var nock = require('nock');
 var Promise = require('bluebird');
@@ -9,8 +11,13 @@ var Promise = require('bluebird');
 // record http traffic
 // nock.recorder.rec();
 
-api.config.set('base', '/api');
-api.config.define(client);
+var beforeEach = function() {
+  var api = rift();
+  api.set('base', '/api');
+  api.define(client);
+  api.registerResolver(RiftResolver);
+  return api;
+}
 
 test('before filter can alter query params', function(t) {
   nock('http://localhost:80')
@@ -22,16 +29,17 @@ test('before filter can alter query params', function(t) {
       'content-length': '15',
       connection: 'close' });
 
-  api.config.set('before', function(request, defer) {
+  var api = beforeEach();
+  api.use(function(request, defer) {
     delete request.params.notAllowed;
     request.params.options = request.params.options || {
       perPage: 25
     };
   });
-  api.config.set('after', null);
+  api.use(RiftXHR());
 
   t.plan(3);
-  api.testBefore({
+  api.request('testBefore', {
     allowed: 'allowedParam',
     notAllowed: 'notAllowedParam'
   })
@@ -41,19 +49,20 @@ test('before filter can alter query params', function(t) {
     t.equal(results[0], 1);
   })
   .catch(function(err) {
+    console.error(err);
     t.notOk(err, 'should not have error');
   })
   .finally(t.end.bind(t));
 });
 
 test('before filter can reject request before xhr', function(t) {
-  api.config.set('before', function(request, defer) {
-    defer.reject(new RiftError('rejected!'));
+  var api = beforeEach();
+  api.use(function(request, defer) {
+    request.error = new RiftError('rejected!');
   });
-  api.config.set('after', null);
 
   t.plan(2);
-  api.testBefore({})
+  api.request('testBefore', {})
   .then(function(results) {
     t.notOk(results, 'should not have results');
   })
@@ -65,21 +74,22 @@ test('before filter can reject request before xhr', function(t) {
 });
 
 test('before filter can resolve request before xhr', function(t) {
-  api.config.set('before', function(request, defer) {
+  var api = beforeEach();
+  api.use(function(request) {
     return Promise.delay(10)
     .then(function() {
-      defer.resolve('resolved!');
+      request.resolve('resolved!');
     })
   });
-  api.config.set('after', null);
 
   t.plan(2);
-  api.testBefore({})
+  api.request('testBefore', {})
   .then(function(results) {
     t.ok(results);
     t.equal(results, 'resolved!');
   })
   .catch(function(err) {
+    console.error(err);
     t.notOk(err, 'should not have error');
   })
   .finally(t.end.bind(t));
@@ -95,15 +105,16 @@ test('after filter can modify response body', function(t) {
       'content-length': '15',
       connection: 'close' });
 
-  api.config.set('before', null);
-  api.config.set('after', function(request, defer) {
-    if (!request.body || !request.body.length) {
-      request.body = [{ok:false}];
+  var api = beforeEach();
+  api.use(RiftXHR());
+  api.use(function(request) {
+    if (!request.data || !request.data.length) {
+      request.resolve([{ok:false}]);
     }
   });
 
   t.plan(3);
-  api.testAfter({})
+  api.request('testAfter', {})
   .then(function(results) {
     t.ok(results);
     t.equal(results.length, 1);
@@ -126,8 +137,9 @@ test('after filter can modify response error', function(t) {
       'content-length': '168',
       connection: 'close' });
 
-  api.config.set('before', null);
-  api.config.set('after', function(request, defer) {
+  var api = beforeEach();
+  api.use(RiftXHR());
+  api.use(function(request, defer) {
     return Promise.delay(10)
     .then(function() {
       if (request.error) {
@@ -137,7 +149,7 @@ test('after filter can modify response error', function(t) {
   });
 
   t.plan(2);
-  api.testCatch({})
+  api.request('testCatch', {})
   .then(function(results) {
     t.notOk(results);
   })

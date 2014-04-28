@@ -23,13 +23,15 @@
     "superagent": "~0.16.0",
     "qs": "~0.6.6",
     "lodash": "~2.4.1",
-    "bluebird": "^1.2.2"
+    "bluebird": "^1.2.2",
+    "engine.io-client": "^1.0.5"
   },
   "devDependencies": {
     "tap": "~0.4.8",
     "nock": "~0.27.2",
     "supertest": "~0.10.0",
     "express": "~3.5.0",
-    "sinon": "^1.9.1"
+    "sinon": "^1.9.1",
+    "engine.io": "^1.0.5"
   }
 }

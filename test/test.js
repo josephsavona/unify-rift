@@ -1,14 +1,10 @@
 var Promise = require('bluebird');
 
 module.exports = {
-  fail: function(params) {
-    return new Promise(function(resolve, reject) {
-      reject('error');
-    });
+  fail: function(request, defer) {
+    defer.reject('error');
   },
-  succeed: function(params) {
-    return new Promise(function(resolve, reject) {
-      resolve(params);
-    });
+  succeed: function(request, defer) {
+    defer.resolve(request.params);
   }
 }
