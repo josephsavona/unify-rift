@@ -6,6 +6,7 @@ var rift = require('./src/rift');
 var RiftError = require('./src/rift_error');
 var RiftRequestError = require('./src/rift_request_error');
 var RiftXHR = require('./src/rift_xhr');
+var RiftWebSocket = require('./src/rift_socket');
 var RiftResolver = require('./src/resolver');
 
 var defaultApi = rift();
@@ -23,6 +24,7 @@ var api = function(apiName) {
 api.RiftError = RiftError;
 api.RiftRequestError = RiftRequestError;
 api.RiftXHR = RiftXHR;
+api.RiftWebSocket = RiftWebSocket;
 api.RiftResolver = RiftResolver;
 
 module.exports = api;

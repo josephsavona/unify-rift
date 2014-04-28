@@ -1,26 +1,26 @@
-var io                = require('socket.io').listen(8100),
-      endpoints  = require('./test.rift'),
-      _                  = require('lodash'),
-      socket;
+var EngineIO = require('engine.io'),
+  endpoints = require('./test.rift'),
+  _ = require('lodash'),
+  io = null;
 
 module.exports = {
+  address: 8001,
   start: function () {
-    socket = io.sockets.on('connection', function (socket) {
-      _.forIn(endpoints, function (endpoint, topic) {
-        if (endpoint.client !== 'socket') { return; }
-          socket.on(topic, function (data) {
-            socket.emit('on' + topic.charAt(0).toUpperCase() + topic.slice(1), {
-              meta: {},
-              data: {
-                message: topic + ' has been received.'
-              },
-              errors: []
-            })
-          });
+    io = EngineIO.listen(this.address);
+    io.on('connection', function(socket) {
+      socket.on('message', function(data) {
+        var msg, response;
+        msg = JSON.parse(data);
+        response = {
+          name: 'on' + msg.name,
+          data: msg.data || null
+        }
+        socket.send(JSON.stringify(response));
       });
     });
   },
-  stop: function () {
-    //need to figure out how to close this stooopid socket!!!
+  close: function () {
+    io.close();
+    io.httpServer.close();
   }
 };

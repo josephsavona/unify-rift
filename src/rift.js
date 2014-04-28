@@ -157,41 +157,6 @@ module.exports = function() {
   Object.freeze(api);
 
   /*
-   *  createRoutes(endpoints, app)
-   *  @private
-   *  @param endpoints: object literal of endpoints
-   *  @param app: express application on which to create endpoints
-   *  See `configAccessor.middleware()`
-   */
-  var createRoutes = function(endpoints, app) {
-    _.forIn(endpoints, function(endpoint, topic) {
-      app[endpoint.method].call(app, (config['base'] || '') + endpoint.url, createRoute(endpoint));
-    });
-  };
-
-  /*
-   *  createRoute(endpoint)
-   *  Creates a route for the given endpoint for serving it on teh server.
-   */
-  var createRoute = function(endpoint) {
-    return function(req, res, next) {
-      var params = _.extend({}, req.query, req.body, req.params);
-      return new Promise(function(resolve) {
-        resolve(exec([endpoint.delegate], endpoint, params, req));
-      })
-      .then(function(response) {
-        if (!req.xhr) {
-          return res.redirect(endpoint.redirectUrl || '/');
-        }
-        return res.json(response);
-      })
-      .catch(function(err) {
-        next(err);
-      });
-    };
-  };
-
-  /*
    *  setDefinition(target, definitions)
    *  merges new definitions with existing ones in target
    */
@@ -261,7 +226,7 @@ module.exports = function() {
     // request wrapper to pass to before/after middleware
     riftRequest = new RiftRequest(_.cloneDeep(endpoint), params, _.defaults(options, config.custom));
     if (endpoint.url) {
-      riftRequest.endpoint.url = urlify((config.custom['base'] || '') + endpoint.url, params);
+      riftRequest.endpoint.url = urlify(endpoint.url, params);
     }
     execChain(riftRequest, defer);
     return defer.promise;

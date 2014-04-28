@@ -36,7 +36,7 @@ test('before filter can alter query params', function(t) {
       perPage: 25
     };
   });
-  api.use(RiftXHR);
+  api.use(RiftXHR());
 
   t.plan(3);
   api.request('testBefore', {
@@ -106,7 +106,7 @@ test('after filter can modify response body', function(t) {
       connection: 'close' });
 
   var api = beforeEach();
-  api.use(RiftXHR);
+  api.use(RiftXHR());
   api.use(function(request) {
     if (!request.data || !request.data.length) {
       request.resolve([{ok:false}]);
@@ -138,7 +138,7 @@ test('after filter can modify response error', function(t) {
       connection: 'close' });
 
   var api = beforeEach();
-  api.use(RiftXHR);
+  api.use(RiftXHR());
   api.use(function(request, defer) {
     return Promise.delay(10)
     .then(function() {

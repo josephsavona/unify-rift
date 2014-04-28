@@ -15,7 +15,7 @@ var Promise = require('bluebird');
 var api = rift();
 api.set('base', '/api');
 api.define(client);
-api.use(RiftXHR);
+api.use(RiftXHR());
 api.registerResolver(RiftResolver);
 
 test('should return error in callback for 403 response', function(t) {

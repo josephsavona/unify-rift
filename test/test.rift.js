@@ -40,7 +40,8 @@ module.exports = {
   },
 
   socketTest: {
-    client: 'socket'
+    client: 'socket',
+    successTopic: 'onsocketTest',
+    failureTopic: 'onsocketTestFailure'
   }
-
 };
