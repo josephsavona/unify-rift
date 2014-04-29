@@ -1,6 +1,6 @@
 {
   "name": "rift",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Thrift-like API generator for client and server.",
   "main": "index.js",
   "scripts": {
