@@ -11,16 +11,20 @@ var RiftResolver = require('./src/resolver');
 
 var defaultApi = rift();
 var apis = {};
+var sharedInstance = null;
 
 var api = function(apiName) {
   if (!apiName) {
-    return rift();
+    return sharedInstance ? sharedInstance : sharedInstance = rift();
   }
+
   if (!(apiName in apis)) {
     apis[apiName] = rift();
   }
   return apis[apiName];
 };
+
+
 api.RiftError = RiftError;
 api.RiftRequestError = RiftRequestError;
 api.RiftXHR = RiftXHR;
