@@ -14,6 +14,11 @@ var apis = {};
 var sharedInstance = null;
 
 var api = function(apiName) {
+  // return new instance if explicitly set to null
+  if (apiName === null) {
+    return rift();
+  }
+  // return shared instance if no apiName given
   if (!apiName) {
     return sharedInstance ? sharedInstance : sharedInstance = rift();
   }

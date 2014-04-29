@@ -12,7 +12,7 @@ var Promise = require('bluebird');
 // nock.recorder.rec();
 
 var beforeEach = function() {
-  var api = rift();
+  var api = rift(null);
   api.set('base', '/api');
   api.define(client);
   api.registerResolver(RiftResolver);
