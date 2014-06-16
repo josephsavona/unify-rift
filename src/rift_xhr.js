@@ -9,7 +9,7 @@ module.exports = function riftXhrMiddlware(options) {
   options = options || {};
   return function riftXhr(request) {
     var xhr;
-    if (!request || !request.endpoint || request.endpoint.client !== 'http') {
+    if (!request || !request.endpoint || (request.endpoint.client && request.endpoint.client !== 'http')) {
       return;
     }
     if (request.error || request.data) {

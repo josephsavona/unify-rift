@@ -8,19 +8,21 @@ var RiftRequestError = require('./src/rift_request_error');
 var RiftXHR = require('./src/rift_xhr');
 var RiftWebSocket = require('./src/rift_websocket');
 var RiftResolver = require('./src/resolver');
+var RiftTest = require('./src/test_helper');
 
 var defaultApi = rift();
 var apis = {};
 var sharedInstance = null;
 
 var api = function(apiName) {
-  // return new instance if explicitly set to null
-  if (apiName === null) {
-    return rift();
-  }
   // return shared instance if no apiName given
   if (!apiName) {
-    return sharedInstance ? sharedInstance : sharedInstance = rift();
+    if (!sharedInstance) {
+      sharedInstance = rift();
+      sharedInstance.registerResolver(RiftResolver);
+      sharedInstance.use(RiftXHR());
+    }
+    return sharedInstance;
   }
 
   if (!(apiName in apis)) {
@@ -35,5 +37,6 @@ api.RiftRequestError = RiftRequestError;
 api.RiftXHR = RiftXHR;
 api.RiftWebSocket = RiftWebSocket;
 api.RiftResolver = RiftResolver;
+api.RiftTest = RiftTest;
 
 module.exports = api;
