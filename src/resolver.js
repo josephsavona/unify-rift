@@ -12,7 +12,7 @@ module.exports = function riftResolver(topic, definitions) {
   if (topic.indexOf('.') === -1) {
     endpoint = definitions[topic];
   } else {
-    topic.split('.').reduce(function(a,b) {
+    endpoint = topic.split('.').reduce(function(a,b) {
       if (typeof a === 'object') {
         return a[b];
       } else {
