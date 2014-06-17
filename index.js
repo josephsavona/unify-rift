@@ -8,13 +8,16 @@ var RiftRequestError = require('./src/rift_request_error');
 var RiftXHR = require('./src/rift_xhr');
 var RiftWebSocket = require('./src/rift_websocket');
 var RiftResolver = require('./src/resolver');
-var RiftTest = require('./src/test_helper');
+var RiftTest = require('./src/rift_test');
 
 var defaultApi = rift();
 var apis = {};
 var sharedInstance = null;
 
 var api = function(apiName) {
+  if (apiName === null) {
+    return rift();
+  }
   // return shared instance if no apiName given
   if (!apiName) {
     if (!sharedInstance) {
