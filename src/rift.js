@@ -15,7 +15,7 @@ module.exports = function() {
       'httpHeaders': {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
-      },
+      }
     },
     callbacks: [],
     resolvers: [],
